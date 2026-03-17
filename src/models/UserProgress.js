@@ -41,4 +41,5 @@ const UserProgressSchema = new mongoose.Schema(
 // Ensure a user has only one progress record per language
 UserProgressSchema.index({ userId: 1, languageId: 1 }, { unique: true });
 
-module.exports = mongoose.model("UserProgress", UserProgressSchema);
+ const UserProgress = mongoose.model("UserProgress", UserProgressSchema);
+ module.exports=UserProgress

@@ -37,6 +37,14 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // prem user access is different
+    isPremium:{
+      type:Boolean,default:false
+    },
+    // counts chat with ai chat box and limits for one day
+    chatCount:{
+      type:Number,default:0
+    },
     // The user's primary/native tongue
     nativeLanguage: {
       type: String,
@@ -56,4 +64,5 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-module.exports = mongoose.model("User", userSchema);
+ const User = mongoose.model("User", userSchema);
+module.exports = User;

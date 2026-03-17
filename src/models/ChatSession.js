@@ -34,4 +34,5 @@ const ChatSessionSchema = new mongoose.Schema(
 // Index for fast lookup when the user opens the chat
 ChatSessionSchema.index({ userId: 1, languageId: 1 });
 
-module.exports = mongoose.model("ChatSession", ChatSessionSchema);
+ const ChatSession = mongoose.model("ChatSession", ChatSessionSchema);
+module.exports= ChatSession

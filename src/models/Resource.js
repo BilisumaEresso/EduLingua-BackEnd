@@ -11,4 +11,5 @@ const resourceSchema = new mongoose.Schema(
   { timestamps: true },
 );
  
-module.exports=mongoose.model('Resource',resourceSchema)
+ const Resource=mongoose.model('Resource',resourceSchema)
+ module.exports = Resource;

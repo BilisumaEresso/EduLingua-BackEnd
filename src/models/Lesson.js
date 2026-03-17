@@ -61,4 +61,5 @@ const lessonSchema = mongoose.Schema(
   },
 );
 
-module.exports=mongoose.model('Lesson',lessonSchema)
+ const Lesson =mongoose.model('Lesson',lessonSchema)
+ module.exports = Lesson;

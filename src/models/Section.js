@@ -31,3 +31,7 @@ const sectionSchema = mongoose.Schema({
   ],
   resource: [{ type: mongoose.Schema.Types.ObjectId, ref: "Resource" }],
 });
+
+const Section = mongoose.model("Section", sectionSchema);
+
+module.exports = Section;
