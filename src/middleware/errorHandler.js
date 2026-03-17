@@ -1,17 +1,26 @@
-// middleware/errorHandler.js
-exports.errorHandler=(err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  err.status = err.status || "error";
+exports.errorHandler = (err, req, res, next) => {
+  const statusCode = err.statusCode || 500;
+  const status = err.status || "error";
 
-  // Pro tip: Don't leak stack traces to users in production
   const response = {
-    status: err.status,
-    message: err.message,
+    success: false, // Matches Success Handler
+    status: status, // 'fail' or 'error'
+    message: err.message || "Internal Server Error",
+    data: null, // Consistent structure for frontend parsing
+    timestamp: new Date().toISOString(),
   };
 
-  if (process.env.NODE_ENV === "development") {
-    response.stack = err.stack;
+  // Add stack trace only in development
+  // if (process.env.NODE_ENV === "development") {
+  //   response.stack = err.stack;
+  // }
+
+  // Handle specific Mongoose errors (Optional but recommended)
+  if (err.name === "CastError") {
+    response.message = `Invalid ${err.path}: ${err.value}`;
+    return res.status(400).json(response);
   }
 
-  res.status(err.statusCode).json(response);
-}
+  console.log(response)
+  res.status(statusCode).json(response);
+};

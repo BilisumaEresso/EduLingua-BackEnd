@@ -45,6 +45,9 @@ const userSchema = new mongoose.Schema(
     chatCount:{
       type:Number,default:0
     },
+    countResetsAt:{
+      type:Date,
+    },
     // The user's primary/native tongue
     nativeLanguage: {
       type: String,
