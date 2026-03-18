@@ -1,20 +1,20 @@
-const express=require("express")
-const sendSuccess = require("../utils/sendSuccess")
- 
-const router=express.Router()
+const express = require("express");
+const sendSuccess = require("../utils/sendSuccess");
+const { signup, login, updateUser } = require("../controllers/auth");
+const isAuth = require("../middleware/isAuth");
 
-router.post("/signup",(req,res,next)=>{
-    sendSuccess(res,200,"this is success")
-})
-router.post("/login", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
+const router = express.Router();
+
+router.post("/signup", signup);
+router.post("/login", login);
+router.get("/me", isAuth, (req, res, next) => {
+  try {
+    sendSuccess(res, 200, "user data fetched successfully", { user: req.user });
+  } catch (error) {
+    next(error);
+  }
 });
-router.get("/me", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/update", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
+router.put("/update",isAuth,updateUser);
 router.delete("/delete", (req, res, next) => {
   sendSuccess(res, 200, "this is success");
 });
@@ -28,6 +28,4 @@ router.post("/usubscribe", (req, res, next) => {
   sendSuccess(res, 200, "this is success");
 });
 
-
-
-module.exports=router
+module.exports = router;
