@@ -1,6 +1,6 @@
 const express = require("express");
 const sendSuccess = require("../utils/sendSuccess");
-const { signup, login, updateUser } = require("../controllers/auth");
+const { signup, login, updateUser, changePassword, deleteUser } = require("../controllers/auth");
 const isAuth = require("../middleware/isAuth");
 
 const router = express.Router();
@@ -15,9 +15,10 @@ router.get("/me", isAuth, (req, res, next) => {
   }
 });
 router.put("/update",isAuth,updateUser);
-router.delete("/delete", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
+router.put("/change-password",isAuth,changePassword);
+router.delete("/delete", isAuth,deleteUser);
+
+// TODO:Dont forget this on the last
 router.put("/premium", (req, res, next) => {
   sendSuccess(res, 200, "this is success");
 });

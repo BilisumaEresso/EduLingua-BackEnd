@@ -26,6 +26,9 @@ const isAuth = async (req, res, next) => {
 
     const { userId } = decoded;
     const userData = await User.findById(userId).select("-password -__v");
+    if(!userData){
+      throw new AppError("user not found",401)
+    }
     req.user = userData;
     next();
   } catch (error) {
