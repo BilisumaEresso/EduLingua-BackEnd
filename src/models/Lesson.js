@@ -1,14 +1,7 @@
-// 2. Lesson Schema (The Container)
-// LanguageID: Reference to Language.
-// Level: Number (1–5).
-// SequenceOrder: Number (e.g., 1, 2, 3) to ensure users take them in order.
-// Title/Description: Text.
-// Sections: Array of Reference IDs to the Section model.
-// QuizID: Reference to a Quiz specifically for this lesson.
 
 const mongoose = require("mongoose");
 
-const lessonSchema = mongoose.Schema(
+const lessonSchema =new mongoose.Schema(
   {
     // language user can speak
     langauge: {

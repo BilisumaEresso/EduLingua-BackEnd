@@ -44,7 +44,7 @@ const login = async (req, res, next) => {
       user = await User.findOne({ username });
     }
     if (!user) {
-      throw new AppError("Invalid Credintial", 401);
+      throw new AppError("Invalid Credintial", 400);
     }
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) {

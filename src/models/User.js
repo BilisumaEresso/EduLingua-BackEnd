@@ -31,22 +31,29 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       default: "learner",
-      enum: ["learner", "teacher", "admin"],
+      enum: ["learner", "teacher", "admin", "super-admin"],
+    },
+    promotedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      default: null,
     },
     isActive: {
       type: Boolean,
       default: true,
     },
     // prem user access is different
-    isPremium:{
-      type:Boolean,default:false
+    isPremium: {
+      type: Boolean,
+      default: false,
     },
     // counts chat with ai chat box and limits for one day
-    chatCount:{
-      type:Number,default:0
+    chatCount: {
+      type: Number,
+      default: 0,
     },
-    countResetsAt:{
-      type:Date,
+    countResetsAt: {
+      type: Date,
     },
     // The user's primary/native tongue
     nativeLanguage: {
@@ -59,7 +66,7 @@ const userSchema = new mongoose.Schema(
       // Renamed from 'type' to avoid confusion with Mongoose reserved keywords
       type: String,
       default: "individual",
-      enum: ["student", "enterprise", "individual"],
+      enum: ["student", "enterprise", "individual","teacher"],
     },
   },
   {
@@ -67,5 +74,5 @@ const userSchema = new mongoose.Schema(
   },
 );
 
- const User = mongoose.model("User", userSchema);
+const User = mongoose.model("User", userSchema);
 module.exports = User;

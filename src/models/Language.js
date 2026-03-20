@@ -1,7 +1,7 @@
 
 const mongoose = require("mongoose");
 
-const langSchema = mongoose.Schema({
+const langSchema =new mongoose.Schema({
   name: {
     type: String,
     required: true,

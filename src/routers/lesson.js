@@ -1,124 +1,129 @@
+// routes/lessonRoutes.js
 const express = require("express");
-const sendSuccess = require("../utils/sendSuccess");
-
 const router = express.Router();
+const {
+  addLesson,
+  updateLesson,
+  deleteLesson,
+  getMyLessons,
+  getLessonById,
+  addSection,
+  updateSection,
+  deleteSection,
+  getSectionsByLesson,
+  addResource,
+  updateResource,
+  deleteResource,
+  getResourcesBySection,
+  getResourceById,
+  addQuiz,
+  getQuizByLesson,
+  updateQuiz,
+  deleteQuiz,
+  getAllLessonsForStudent,
+  getLessonForStudent,
+  startLesson,
+  finishLesson,
+  cancelLesson,
+  retakeLesson,
+  takeQuiz,
+  cancelQuiz,
+  retakeQuiz,
+  updateProgress,
+  getCertificate,
+  changeLanguage,
+} = require("../controllers/lesson");
+const isAuth = require("../middleware/isAuth");
+const isTeacher = require("../middleware/isTeacher");
+const validate = require("../utils/validate");
 
-// lessons
-router.post("/add", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/update", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.delete("/delete", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.get("/my-lessons", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.get("/my-lessons/:id", (req, res, next) => {
-  //id = lesson id
-  sendSuccess(res, 200, "this is success");
-});
+// Joi schemas (import or define here)
+const {
+  addLessonSchema,
+  updateLessonSchema,
+  addSectionSchema,
+  updateSectionSchema,
+  addResourceSchema,
+  updateResourceSchema,
+  addQuizSchema,
+  updateQuizSchema,
+  takeQuizSchema,
+  updateProgressSchema,
+  changeLanguageSchema,
+  paginationSchema,
+} = require("../validations/lessonValidations");
 
-// sections under lessons
-router.post("/section/add", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/section/update/:id", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.get("/:id/section", (req, res, next) => {
-  //id = lessons id this used for getting all sections under a lesson
-  sendSuccess(res, 200, "this is success");
-});
-router.delete("/section/delete/:id", (req, res, next) => {
-  //id = section id this used for getting a section
-  sendSuccess(res, 200, "this is success");
-});
-router.post("/section/:id/resource/add", (req, res, next) => {
-  //id = section id this used for adding resource to a section
-  sendSuccess(res, 200, "this is success");
-});
-router.get("/section/:id/resource/get", (req, res, next) => {
-  //id = section id this used for getting a section
-  sendSuccess(res, 200, "this is success");
-});
-router.get("/section/:id/resource/get/:id", (req, res, next) => {
-  //id = section id this used for getting a section
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/section/resource/update/:id", (req, res, next) => {
-  //id = section id this used for getting a section
-  sendSuccess(res, 200, "this is success");
-});
-router.delete("/section/resource/delete/:id", (req, res, next) => {
-  //id = section id this used for getting a section
-  sendSuccess(res, 200, "this is success");
-});
+// All routes require authentication
+router.use(isAuth);
 
-// Quizzes routers under lessons
+// ----- Lessons (Teacher only) -----
+router.post("/add", isTeacher, validate(addLessonSchema), addLesson);
+router.put(
+  "/update/:id",
+  isTeacher,
+  validate(updateLessonSchema),
+  updateLesson,
+);
+router.delete("/delete/:id", isTeacher, deleteLesson);
+router.get(
+  "/my-lessons",
+  isTeacher,
+  validate(paginationSchema, "query"),
+  getMyLessons,
+);
+router.get("/my-lessons/:id", isTeacher, getLessonById);
 
-router.post("/quiz/add", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.get(":id/quiz/", (req, res, next) => {
-  // get quiz for id = lesson
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/quiz/update/:id", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.delete("/quiz/delete/:id", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
+// ----- Sections -----
+router.post("/section/add", isTeacher, validate(addSectionSchema), addSection);
+router.put(
+  "/section/update/:id",
+  isTeacher,
+  validate(updateSectionSchema),
+  updateSection,
+);
+router.delete("/section/delete/:id", isTeacher, deleteSection);
+router.get("/:id/section", getSectionsByLesson); // public (students can view)
 
-// students
-router.get("/get", (req, res, next) => {
-  //get  all lessons
-  sendSuccess(res, 200, "this is success");
-});
-router.post("/get/:id", (req, res, next) => {
-  //id= lesson ,student gets a lesson
-  sendSuccess(res, 200, "this is success");
-});
-router.post("/:id/start", (req, res, next) => {
-  //id= lesson ,student starts a lesson
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/:id/finish", (req, res, next) => {
-  //id= lesson ,student finishes a lesson
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/:id/cancel", (req, res, next) => {
-  //id= lesson ,student cancels a lesson
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/lang", (req, res, next) => {
-  //change the language
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/:id/retake", (req, res, next) => {
-  //id= lesson ,student retakes a lesson
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/quiz/:id/take", (req, res, next) => {
-  //id= lesson ,student retakes a lesson
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/quiz/:id/cancel", (req, res, next) => {
-  //id= lesson ,student retakes a lesson
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/quiz/:id/retake", (req, res, next) => {
-  //id= lesson ,student retakes a lesson
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/update-progress", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.get("/certificate", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
+// ----- Resources -----
+router.post(
+  "/section/:id/resource/add",
+  isTeacher,
+  validate(addResourceSchema),
+  addResource,
+);
+router.put(
+  "/section/resource/update/:id",
+  isTeacher,
+  validate(updateResourceSchema),
+  updateResource,
+);
+router.delete("/section/resource/delete/:id", isTeacher, deleteResource);
+router.get("/section/:id/resource/get", getResourcesBySection);
+router.get("/section/resource/get/:id", getResourceById); // note: param conflict, adjust if needed
+
+// ----- Quizzes -----
+router.post("/quiz/add", isTeacher, validate(addQuizSchema), addQuiz);
+router.get("/:id/quiz", getQuizByLesson);
+router.put(
+  "/quiz/update/:id",
+  isTeacher,
+  validate(updateQuizSchema),
+  updateQuiz,
+);
+router.delete("/quiz/delete/:id", isTeacher, deleteQuiz);
+
+// ----- Student endpoints -----
+router.get("/get", getAllLessonsForStudent);
+router.get("/get/:id", getLessonForStudent);
+router.post("/:id/start", startLesson);
+router.put("/:id/finish", finishLesson);
+router.put("/:id/cancel", cancelLesson);
+router.put("/:id/retake", retakeLesson);
+router.post("/quiz/:id/take", validate(takeQuizSchema), takeQuiz);
+router.put("/quiz/:id/cancel", cancelQuiz);
+router.put("/quiz/:id/retake", retakeQuiz);
+router.put("/update-progress", validate(updateProgressSchema), updateProgress);
+router.get("/certificate", getCertificate);
+router.put("/lang", validate(changeLanguageSchema), changeLanguage);
 
 module.exports = router;

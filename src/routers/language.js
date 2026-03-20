@@ -1,24 +1,21 @@
-const express=require("express")
-const sendSuccess = require("../utils/sendSuccess")
+const express = require("express");
+const sendSuccess = require("../utils/sendSuccess");
+const {
+  getAllLang,
+  addLang,
+  getLang,
+  updateLang,
+  deleteLang,
+} = require("../controllers/language");
+const isAuth = require("../middleware/isAuth");
+const isSuperAdmin = require("../middleware/isSuperAdmin");
 
-const router=express.Router()
+const router = express.Router();
 
-router.post("/add",(req,res,next)=>{
-    sendSuccess(res,200,"this is success")
-})
-router.get("/:code", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.get("/", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/update", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.delete("/delete", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
+router.post("/add", isAuth, isSuperAdmin, addLang);
+router.get("/:code", getLang);
+router.get("/", getAllLang);
+router.put("/update/:code", isAuth, isSuperAdmin, updateLang); // path parameter: language code to update
+router.delete("/delete/:code", isAuth, isSuperAdmin, deleteLang); // path parameter: language code to delete
 
-
-
-module.exports=router
+module.exports = router;
