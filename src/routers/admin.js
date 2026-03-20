@@ -1,12 +1,14 @@
-const express=require("express")
+const express=require("express");
+const isSuperAdmin = require("../middleware/isSuperAdmin");
 
 const router = express.Router();
 
-router.post("/signup", signup);
-router.post("/login", login);
-router.get("/me", isAuth, (req, res, next) => {
+// super Admin
+router.put("/promote", signup);
+router.put("/demote", login);
+router.get("/shut-system", isAuth,isSuperAdmin, (req, res, next) => {
   try {
-    sendSuccess(res, 200, "user data fetched successfully", { user: req.user });
+    sendSuccess(res, 200, "not implemented yet");
   } catch (error) {
     next(error);
   }
