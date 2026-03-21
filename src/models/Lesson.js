@@ -1,16 +1,15 @@
-
 const mongoose = require("mongoose");
 
-const lessonSchema =new mongoose.Schema(
+const lessonSchema = new mongoose.Schema(
   {
     // language user can speak
-    langauge: {
+    language: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Language",
       required: true,
     },
     //   language user want to speak
-    preferedLanguage: {
+    preferredLanguage: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Language",
       required: true,
@@ -38,6 +37,10 @@ const lessonSchema =new mongoose.Schema(
       length: { max: 150, min: 3 },
       required: true,
     },
+    isActive: {
+      type: Boolean,
+      default: false,
+    },
     sections: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -54,5 +57,5 @@ const lessonSchema =new mongoose.Schema(
   },
 );
 
- const Lesson =mongoose.model('Lesson',lessonSchema)
- module.exports = Lesson;
+const Lesson = mongoose.model("Lesson", lessonSchema);
+module.exports = Lesson;

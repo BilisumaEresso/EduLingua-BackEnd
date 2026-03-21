@@ -1,32 +1,37 @@
+// routes/adminRoutes.js
 const express = require("express");
-const isSuperAdmin = require("../middleware/isSuperAdmin");
-const isAdmin = require("../middleware/isAdmin");
-const { promote, demote, getUsers, getUser, getLessons, getQuizzes } = require("../controllers/admin");
 const isAuth = require("../middleware/isAuth");
-const sendSuccess = require("../utils/sendSuccess");
+const isAdmin = require("../middleware/isAdmin");
+const isSuperAdmin = require("../middleware/isSuperAdmin");
+const {
+  promote,
+  demote,
+  acceptTeacher,
+  rejectTeacher,
+  fireTeacher,
+  shutdownSystem,
+  getUsers,
+  getUser,
+  getLessons,
+  getQuizzes,
+  getDashboardStats,
+} = require("../controllers/admin");
 
 const router = express.Router();
 
-// super Admin
+// Super‑admin only
 router.put("/promote/:id", isAuth, isSuperAdmin, promote);
 router.put("/demote/:id", isAuth, isSuperAdmin, demote);
-router.put("/shut-system", isAuth, isSuperAdmin, (req, res, next) => {
-  try {
-    sendSuccess(res, 200, "not implemented yet");
-  } catch (error) {
-    next(error);
-  }
-});
+router.put("/accept-teacher/:id", isAuth, isSuperAdmin, acceptTeacher);
+router.put("/reject-teacher/:id", isAuth, isSuperAdmin, rejectTeacher);
+router.put("/fire-teacher/:id", isAuth, isSuperAdmin, fireTeacher);
+router.put("/shut-system", isAuth, isSuperAdmin, shutdownSystem);
 
-// admins
-router.get("/all-user", isAuth,isAdmin, getUsers);
-router.get("/user/:id", isAuth, getUser);
-router.get("/all-lesson", isAuth, getLessons);
-router.get("/all-quiz", isAuth, getQuizzes);
-// router.get("/ai-usage", isAuth, promote);  // TODO: this is for later
-router.put("/accept-teacher/:id", isAuth, promote);
-router.put("/reject-teacher/:id", isAuth, promote);
-router.put("/fire-teacher/:id", isAuth, promote);
-
+// Admin & Super‑admin (both can access)
+router.get("/all-user", isAuth, isAdmin, getUsers);
+router.get("/user/:id", isAuth, isAdmin, getUser);
+router.get("/all-lesson", isAuth, isAdmin, getLessons);
+router.get("/all-quiz", isAuth, isAdmin, getQuizzes);
+router.get("/dashboard-stats", isAuth, isAdmin, getDashboardStats);
 
 module.exports = router;

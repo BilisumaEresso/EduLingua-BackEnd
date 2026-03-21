@@ -61,12 +61,13 @@ const userSchema = new mongoose.Schema(
       default: "english",
       lowercase: true,
     },
+    teacherRequested: { type: Boolean, default: false },
     // User category for marketing/content tailoring
     accountType: {
       // Renamed from 'type' to avoid confusion with Mongoose reserved keywords
       type: String,
       default: "individual",
-      enum: ["student", "enterprise", "individual","teacher"],
+      enum: ["student", "enterprise", "individual", "teacher"],
     },
   },
   {

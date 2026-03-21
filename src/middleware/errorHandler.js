@@ -6,7 +6,7 @@ exports.errorHandler = (err, req, res, next) => {
     success: false, // Matches Success Handler
     status: status, // 'fail' or 'error'
     message: err.message || "Internal Server Error",
-    data: null, // Consistent structure for frontend parsing
+    data: err.data, // Consistent structure for frontend parsing
     timestamp: new Date().toISOString(),
   };
 

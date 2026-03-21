@@ -1,3 +1,4 @@
+// models/UserProgress.js
 const mongoose = require("mongoose");
 
 const UserProgressSchema = new mongoose.Schema(
@@ -12,19 +13,8 @@ const UserProgressSchema = new mongoose.Schema(
       ref: "Language",
       required: true,
     },
-    // The specific level (1-5) the user is currently working through
-    overallLevel: {
-      type: Number,
-      default: 1,
-      min: 1,
-      max: 5,
-    },
-    // The "active" lesson they are currently stuck on or studying
-    currentLessonId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Lesson",
-    },
-    // History of everything they have passed
+    overallLevel: { type: Number, default: 1, min: 1, max: 5 },
+    currentLessonId: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson" },
     completedLessons: [
       {
         lessonId: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson" },
@@ -32,14 +22,17 @@ const UserProgressSchema = new mongoose.Schema(
         completedAt: { type: Date, default: Date.now },
       },
     ],
-    // For "Streaks" or engagement tracking
-    lastActivity: { type: Date, default: Date.now },
+    completedSections: [
+      { type: mongoose.Schema.Types.ObjectId, ref: "Section" },
+    ], // new
+    xp: { type: Number, default: 0 }, // new
+    streak: { type: Number, default: 0 }, // new
+    lastActivityDate: { type: Date, default: Date.now }, // new
   },
   { timestamps: true },
 );
 
-// Ensure a user has only one progress record per language
 UserProgressSchema.index({ userId: 1, languageId: 1 }, { unique: true });
 
- const UserProgress = mongoose.model("UserProgress", UserProgressSchema);
- module.exports=UserProgress
+const UserProgress = mongoose.model("UserProgress", UserProgressSchema);
+module.exports = UserProgress;

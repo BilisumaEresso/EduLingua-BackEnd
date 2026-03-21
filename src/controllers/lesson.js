@@ -16,13 +16,13 @@ const mongoose = require("mongoose");
 
 exports.addLesson = async (req, res, next) => {
   try {
-    const { language, preferedLanguage, level, title, desc } = req.body;
+    const { language, preferredLanguage, level, title, desc } = req.body;
     const teacher = req.user._id;
 
     // Verify languages exist
     const [lang, prefLang] = await Promise.all([
       Language.findById(language),
-      Language.findById(preferedLanguage),
+      Language.findById(preferredLanguage),
     ]);
     if (!lang || !prefLang) throw new AppError("Invalid language(s)", 400);
 
@@ -31,8 +31,8 @@ exports.addLesson = async (req, res, next) => {
     const sequenceOrder = count + 1;
 
     const lesson = new Lesson({
-      langauge: language, // note: field name in schema is "langauge" (typo)
-      preferedLanguage,
+      language: language, // note: field name in schema is "language" (typo)
+      preferredLanguage,
       teacher,
       level,
       title,
@@ -58,12 +58,12 @@ exports.updateLesson = async (req, res, next) => {
     if (updates.language) {
       const lang = await Language.findById(updates.language);
       if (!lang) throw new AppError("Invalid language", 400);
-      lesson.langauge = updates.language;
+      lesson.language = updates.language;
     }
-    if (updates.preferedLanguage) {
-      const prefLang = await Language.findById(updates.preferedLanguage);
+    if (updates.preferredLanguage) {
+      const prefLang = await Language.findById(updates.preferredLanguage);
       if (!prefLang) throw new AppError("Invalid preferred language", 400);
-      lesson.preferedLanguage = updates.preferedLanguage;
+      lesson.preferredLanguage = updates.preferredLanguage;
     }
     if (updates.level) lesson.level = updates.level;
     if (updates.title) lesson.title = updates.title;
@@ -98,7 +98,7 @@ exports.getMyLessons = async (req, res, next) => {
     const lessons = await Lesson.find({ teacher: req.user._id, isActive: true })
       .skip(skip)
       .limit(limit)
-      .populate("langauge preferedLanguage", "name code")
+      .populate("language preferredLanguage", "name code")
       .lean();
     const total = await Lesson.countDocuments({
       teacher: req.user._id,
@@ -126,7 +126,7 @@ exports.getLessonById = async (req, res, next) => {
       teacher: req.user._id,
       isActive: true,
     })
-      .populate("langauge preferedLanguage", "name code")
+      .populate("language preferredLanguage", "name code")
       .populate("sections") // Sections array populated
       .populate("quiz") // Quiz populated
       .lean();
@@ -434,12 +434,12 @@ exports.getAllLessonsForStudent = async (req, res, next) => {
     const { page = 1, limit = 10, languageId } = req.query; // optional filter by target language
     const skip = (page - 1) * limit;
     const filter = { isActive: true };
-    if (languageId) filter.preferedLanguage = languageId;
+    if (languageId) filter.preferredLanguage = languageId;
 
     const lessons = await Lesson.find(filter)
       .skip(skip)
       .limit(limit)
-      .populate("langauge preferedLanguage", "name code")
+      .populate("language preferredLanguage", "name code")
       .populate("teacher", "name")
       .lean();
     const total = await Lesson.countDocuments(filter);
@@ -461,7 +461,7 @@ exports.getLessonForStudent = async (req, res, next) => {
   try {
     const { id } = req.params;
     const lesson = await Lesson.findById(id)
-      .populate("langauge preferedLanguage", "name code")
+      .populate("language preferredLanguage", "name code")
       .populate("teacher", "name")
       .populate({
         path: "sections",
@@ -471,12 +471,12 @@ exports.getLessonForStudent = async (req, res, next) => {
     if (!lesson) throw new AppError("Lesson not found", 404);
 
     // Optionally get user's progress for this lesson (if we have a progress model)
-    // Using UserProgress model: find progress for this language (lesson.preferedLanguage)
+    // Using UserProgress model: find progress for this language (lesson.preferredLanguage)
     let progress = null;
     if (req.user) {
       const userProgress = await UserProgress.findOne({
         userId: req.user._id,
-        languageId: lesson.preferedLanguage,
+        languageId: lesson.preferredLanguage,
       });
       if (userProgress) {
         const lessonProgress = userProgress.completedLessons.find(
@@ -501,12 +501,12 @@ exports.startLesson = async (req, res, next) => {
 
     let userProgress = await UserProgress.findOne({
       userId: req.user._id,
-      languageId: lesson.preferedLanguage,
+      languageId: lesson.preferredLanguage,
     });
     if (!userProgress) {
       userProgress = new UserProgress({
         userId: req.user._id,
-        languageId: lesson.preferedLanguage,
+        languageId: lesson.preferredLanguage,
         currentLessonId: id,
       });
       await userProgress.save();
@@ -528,12 +528,12 @@ exports.finishLesson = async (req, res, next) => {
 
     let userProgress = await UserProgress.findOne({
       userId: req.user._id,
-      languageId: lesson.preferedLanguage,
+      languageId: lesson.preferredLanguage,
     });
     if (!userProgress) {
       userProgress = new UserProgress({
         userId: req.user._id,
-        languageId: lesson.preferedLanguage,
+        languageId: lesson.preferredLanguage,
       });
     }
 
@@ -568,7 +568,7 @@ exports.cancelLesson = async (req, res, next) => {
 
     const userProgress = await UserProgress.findOne({
       userId: req.user._id,
-      languageId: lesson.preferedLanguage,
+      languageId: lesson.preferredLanguage,
     });
     if (
       userProgress &&
@@ -593,7 +593,7 @@ exports.retakeLesson = async (req, res, next) => {
 
     const userProgress = await UserProgress.findOne({
       userId: req.user._id,
-      languageId: lesson.preferedLanguage,
+      languageId: lesson.preferredLanguage,
     });
     if (userProgress) {
       // Remove from completedLessons
@@ -604,6 +604,86 @@ exports.retakeLesson = async (req, res, next) => {
       await userProgress.save();
     }
     sendSuccess(res, 200, "Lesson reset, you can retake");
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Controller for finishing a section
+
+exports.finishSection = async (req, res, next) => {
+  try {
+    const { lessonId, sectionId } = req.body;
+    const userId = req.user._id;
+
+    // 1. Get the lesson to find its language
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) throw new AppError("Lesson not found", 404);
+    const languageId = lesson.preferredLanguage; // use correct field name from your lesson schema
+
+    // 2. Find or create user progress for this language
+    let progress = await UserProgress.findOne({ userId, languageId });
+    if (!progress) {
+      progress = new UserProgress({
+        userId,
+        languageId,
+        overallLevel: lesson.level,
+        currentLessonId: lessonId,
+        completedSections: [],
+        completedLessons: []
+      });
+      await progress.save();
+    }
+
+    // 3. Check if section already completed
+    if (progress.completedSections.includes(sectionId)) {
+      throw new AppError("Section already completed", 400);
+    }
+
+    // 4. Mark section as completed
+    progress.completedSections.push(sectionId);
+
+    // 5. Award XP (customize value)
+    progress.xp = (progress.xp || 0) + 10;
+
+    // 6. Update streak logic
+    const today = new Date().setHours(0, 0, 0, 0);
+    const lastActivity = progress.lastActivityDate ? new Date(progress.lastActivityDate).setHours(0, 0, 0, 0) : null;
+    if (lastActivity === today) {
+      // Already active today, streak unchanged
+    } else if (lastActivity === today - 86400000) { // yesterday
+      progress.streak = (progress.streak || 0) + 1;
+    } else {
+      progress.streak = 1; // new streak starts
+    }
+    progress.lastActivityDate = new Date();
+
+    // 7. Save progress
+    await progress.save();
+
+    // 8. Check if all sections of this lesson are completed
+    const lessonWithSections = await Lesson.findById(lessonId).populate("sections");
+    const allSectionsCompleted = lessonWithSections.sections.every(section =>
+      progress.completedSections.some(completedId => completedId.toString() === section._id.toString())
+    );
+
+    // 9. Prepare response
+    let quizUnlocked = false;
+    if (allSectionsCompleted) {
+      // Optionally mark that the lesson is ready for quiz
+      // Could set a flag in progress (e.g., lessonReadyForQuiz = true) if needed
+      quizUnlocked = true;
+    }
+
+    sendSuccess(res, 200, "Section completed", {
+      progress: {
+        xp: progress.xp,
+        streak: progress.streak,
+        completedSectionsCount: progress.completedSections.length,
+        allSectionsCompleted,
+        quizUnlocked
+      }
+    });
   } catch (error) {
     next(error);
   }
@@ -637,7 +717,7 @@ exports.takeQuiz = async (req, res, next) => {
     // Update user progress with quiz result
     const userProgress = await UserProgress.findOne({
       userId: req.user._id,
-      languageId: lesson.preferedLanguage,
+      languageId: lesson.preferredLanguage,
     });
     if (userProgress) {
       const lessonProgress = userProgress.completedLessons.find(
@@ -676,7 +756,7 @@ exports.retakeQuiz = async (req, res, next) => {
 
     const userProgress = await UserProgress.findOne({
       userId: req.user._id,
-      languageId: lesson.preferedLanguage,
+      languageId: lesson.preferredLanguage,
     });
     if (userProgress) {
       const lessonProgress = userProgress.completedLessons.find(
@@ -693,35 +773,134 @@ exports.retakeQuiz = async (req, res, next) => {
   }
 };
 
+// controllers/progressController.js (partial)
+
 exports.updateProgress = async (req, res, next) => {
   try {
     const { lessonId, sectionId, completed } = req.body;
-    // For now, we don't store section completion in UserProgress. Could add a field.
-    sendSuccess(res, 200, "Progress updated (stub)");
+    const userId = req.user._id;
+
+    // Validate input
+    if (!lessonId || !sectionId) {
+      throw new AppError("Missing lessonId or sectionId", 400);
+    }
+    if (completed !== true && completed !== false) {
+      throw new AppError("Completed must be a boolean", 400);
+    }
+
+    // Only handle marking as completed (no un‑marking for now)
+    if (completed !== true) {
+      return sendSuccess(res, 200, "Progress update ignored (only marking completed is supported)");
+    }
+
+    // 1. Get lesson to find language
+    const lesson = await Lesson.findById(lessonId);
+    if (!lesson) throw new AppError("Lesson not found", 404);
+    const languageId = lesson.preferredLanguage; // adjust if field name differs
+
+    // 2. Find or create user progress
+    let progress = await UserProgress.findOne({ userId, languageId });
+    if (!progress) {
+      progress = new UserProgress({
+        userId,
+        languageId,
+        overallLevel: lesson.level,
+        currentLessonId: lessonId,
+        completedSections: [],
+        completedLessons: []
+      });
+      await progress.save();
+    }
+
+    // 3. Check if section already completed
+    if (progress.completedSections.includes(sectionId)) {
+      throw new AppError("Section already completed", 400);
+    }
+
+    // 4. Mark section as completed
+    progress.completedSections.push(sectionId);
+
+    // 5. Award XP (customise value as needed)
+    progress.xp = (progress.xp || 0) + 10;
+
+    // 6. Update streak
+    const today = new Date().setHours(0, 0, 0, 0);
+    const lastActivity = progress.lastActivityDate ? new Date(progress.lastActivityDate).setHours(0, 0, 0, 0) : null;
+    if (lastActivity === today) {
+      // already active today, streak unchanged
+    } else if (lastActivity === today - 86400000) {
+      progress.streak = (progress.streak || 0) + 1;
+    } else {
+      progress.streak = 1;
+    }
+    progress.lastActivityDate = new Date();
+
+    // 7. Save progress
+    await progress.save();
+
+    // 8. Check if all sections of this lesson are completed
+    const lessonWithSections = await Lesson.findById(lessonId).populate("sections");
+    const allSectionsCompleted = lessonWithSections.sections.every(section =>
+      progress.completedSections.some(completedId => completedId.toString() === section._id.toString())
+    );
+
+    // 9. Prepare response
+    let quizUnlocked = false;
+    if (allSectionsCompleted) {
+      // Optionally unlock quiz (e.g., set a flag in progress or simply notify client)
+      quizUnlocked = true;
+    }
+
+    sendSuccess(res, 200, "Progress updated", {
+      progress: {
+        xp: progress.xp,
+        streak: progress.streak,
+        completedSectionsCount: progress.completedSections.length,
+        allSectionsCompleted,
+        quizUnlocked
+      }
+    });
   } catch (error) {
     next(error);
   }
 };
 
+// controllers/progressController.js (partial)
+
 exports.getCertificate = async (req, res, next) => {
   try {
     const { lessonId } = req.query;
+    if (!lessonId) throw new AppError("Lesson ID is required", 400);
+
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) throw new AppError("Lesson not found", 404);
 
+    // Find user progress for the language of this lesson
     const userProgress = await UserProgress.findOne({
       userId: req.user._id,
-      languageId: lesson.preferedLanguage,
+      languageId: lesson.preferredLanguage
     });
-    const completed = userProgress?.completedLessons.some(
-      (l) => l.lessonId.toString() === lessonId,
-    );
-    if (!completed) throw new AppError("Lesson not completed", 400);
 
-    // Generate certificate (stub)
-    sendSuccess(res, 200, "Certificate generated", {
-      url: `/certificates/${req.user._id}/${lessonId}`,
-    });
+    if (!userProgress) {
+      throw new AppError("No progress found for this language", 404);
+    }
+
+    // Check if the lesson is in the completedLessons array
+    const lessonCompleted = userProgress.completedLessons.some(
+      entry => entry.lessonId.toString() === lessonId
+    );
+
+    if (!lessonCompleted) {
+      throw new AppError("Lesson not completed yet", 400);
+    }
+
+    // Optional: also check quiz score if needed (e.g., must have passed quiz)
+    // For example, you could require quizScore >= passingScore from the lesson's quiz.
+
+    // Generate certificate – this is a stub. In production, you'd generate a PDF.
+    const certificateUrl = `/api/certificates/${req.user._id}/${lessonId}`; // example
+
+    sendSuccess(res, 200, "Certificate generated", { url: certificateUrl });
   } catch (error) {
     next(error);
   }

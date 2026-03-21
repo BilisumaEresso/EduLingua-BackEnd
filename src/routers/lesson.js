@@ -32,6 +32,7 @@ const {
   updateProgress,
   getCertificate,
   changeLanguage,
+  finishSection,
 } = require("../controllers/lesson");
 const isAuth = require("../middleware/isAuth");
 const isTeacher = require("../middleware/isTeacher");
@@ -119,11 +120,12 @@ router.post("/:id/start", startLesson);
 router.put("/:id/finish", finishLesson);
 router.put("/:id/cancel", cancelLesson);
 router.put("/:id/retake", retakeLesson);
-router.post("/quiz/:id/take", validate(takeQuizSchema), takeQuiz);
-router.put("/quiz/:id/cancel", cancelQuiz);
+router.post("/section/finish", isAuth, finishSection);
+router.post("/quiz/:id/take",isAuth, validate(takeQuizSchema), takeQuiz);
+router.put("/quiz/:id/cancel",isAuth, cancelQuiz);
 router.put("/quiz/:id/retake", retakeQuiz);
-router.put("/update-progress", validate(updateProgressSchema), updateProgress);
-router.get("/certificate", getCertificate);
+router.put("/update-progress",isAuth, validate(updateProgressSchema), updateProgress);
+router.get("/certificate", isAuth, getCertificate);
 router.put("/lang", validate(changeLanguageSchema), changeLanguage);
 
 module.exports = router;
