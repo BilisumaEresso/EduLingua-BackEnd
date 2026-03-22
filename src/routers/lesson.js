@@ -33,6 +33,9 @@ const {
   getCertificate,
   changeLanguage,
   finishSection,
+  updateQuizForLesson,
+  generateQuizForLesson,
+  generateSectionsForLesson,
 } = require("../controllers/lesson");
 const isAuth = require("../middleware/isAuth");
 const isTeacher = require("../middleware/isTeacher");
@@ -84,6 +87,9 @@ router.put(
 );
 router.delete("/section/delete/:id", isTeacher, deleteSection);
 router.get("/:id/section", getSectionsByLesson); // public (students can view)
+// routes/lessonRoutes.js (add these lines)
+router.post('/:id/generate-sections', isTeacher, generateSectionsForLesson);
+router.post('/:id/generate-quiz', isTeacher, generateQuizForLesson);
 
 // ----- Resources -----
 router.post(
@@ -111,6 +117,7 @@ router.put(
   validate(updateQuizSchema),
   updateQuiz,
 );
+router.put("/:id/quiz", isTeacher,updateQuizForLesson);
 router.delete("/quiz/delete/:id", isTeacher, deleteQuiz);
 
 // ----- Student endpoints -----

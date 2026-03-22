@@ -139,25 +139,46 @@ exports.getLessonById = async (req, res, next) => {
 
 // ========== Sections ==========
 
+// Helper: Normalize content blocks for DB
+const formatContentBlocks = (blocks) => {
+  return blocks.map(block => {
+    let data = {};
+    switch (block.type) {
+      case "translation":
+        // flexible for multiple languages
+        data = { ...block }; // contains swahli, english, amharic, etc.
+        break;
+      case "ai_explanation":
+        data = { content: block.content };
+        break;
+      default:
+        data = block.data || {};
+    }
+    return {
+      type: block.type,
+      data,
+      isAiGenerated: true,
+    };
+  });
+};
+
 exports.addSection = async (req, res, next) => {
   try {
-    const { lessonId, order, contentBlocks, resourceIds } = req.body;
-    const lesson = await Lesson.findOne({
-      _id: lessonId,
-      teacher: req.user._id,
-    });
+    const { lessonId, order, title, contentBlocks, resourceIds } = req.body;
+
+    const lesson = await Lesson.findOne({ _id: lessonId, teacher: req.user._id });
     if (!lesson) throw new AppError("Lesson not found or not yours", 404);
 
-    // Create section
     const section = new Section({
       lesson: lessonId,
+      title,
       order: order || 0,
-      ContentBlocks: contentBlocks || [],
+      ContentBlocks: contentBlocks ? formatContentBlocks(contentBlocks) : [],
       resource: resourceIds || [],
     });
+
     await section.save();
 
-    // Add section to lesson's sections array
     lesson.sections.push(section._id);
     await lesson.save();
 
@@ -170,19 +191,19 @@ exports.addSection = async (req, res, next) => {
 exports.updateSection = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updates = req.body;
+    const { title, order, contentBlocks, resourceIds } = req.body;
+
     const section = await Section.findById(id).populate("lesson");
     if (!section) throw new AppError("Section not found", 404);
-    const lesson = await Lesson.findOne({
-      _id: section.lesson,
-      teacher: req.user._id,
-    });
+
+    const lesson = await Lesson.findOne({ _id: section.lesson._id, teacher: req.user._id });
     if (!lesson) throw new AppError("Not authorized", 403);
 
-    // Update fields
-    if (updates.order !== undefined) section.order = updates.order;
-    if (updates.contentBlocks) section.ContentBlocks = updates.contentBlocks;
-    if (updates.resourceIds) section.resource = updates.resourceIds;
+    if (title !== undefined) section.title = title;
+    if (order !== undefined) section.order = order;
+    if (contentBlocks) section.ContentBlocks = formatContentBlocks(contentBlocks);
+    if (resourceIds) section.resource = resourceIds;
+
     await section.save();
 
     sendSuccess(res, 200, "Section updated", { section });
@@ -196,18 +217,13 @@ exports.deleteSection = async (req, res, next) => {
     const { id } = req.params;
     const section = await Section.findById(id).populate("lesson");
     if (!section) throw new AppError("Section not found", 404);
-    const lesson = await Lesson.findOne({
-      _id: section.lesson,
-      teacher: req.user._id,
-    });
+
+    const lesson = await Lesson.findOne({ _id: section.lesson._id, teacher: req.user._id });
     if (!lesson) throw new AppError("Not authorized", 403);
 
-    // Remove section from lesson's sections array
     lesson.sections.pull(section._id);
     await lesson.save();
 
-    // Optionally delete associated resources
-    await Resource.deleteMany({ _id: { $in: section.resource } });
     await section.deleteOne();
 
     sendSuccess(res, 200, "Section deleted");
@@ -440,7 +456,7 @@ exports.getAllLessonsForStudent = async (req, res, next) => {
       .skip(skip)
       .limit(limit)
       .populate("language preferredLanguage", "name code")
-      .populate("teacher", "name")
+      .populate("teacher", "name").populate("sections")
       .lean();
     const total = await Lesson.countDocuments(filter);
     sendSuccess(res, 200, "Lessons fetched", {
@@ -917,6 +933,73 @@ exports.changeLanguage = async (req, res, next) => {
     sendSuccess(res, 200, "Language updated", {
       preferredLanguage: languageId,
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// controllers/lessonController.js (additions)
+
+const { generateSections, generateQuiz } = require('../services/aiServices');
+
+// Generate sections for a lesson (teacher only)
+exports.generateSectionsForLesson = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const lesson = await Lesson.findOne({
+      _id: id,
+      teacher: req.user._id,
+    })
+      .populate("language", "name code")
+      .populate("preferredLanguage","name code");
+    if (!lesson) throw new AppError('Lesson not found or not yours', 404);
+
+    const sections = await generateSections(lesson);
+    // Return the generated sections as a draft; teacher will later update the lesson's sections array
+    sendSuccess(res, 200, 'Sections generated', { lesson,sections });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Generate quiz for a lesson (teacher only)
+exports.generateQuizForLesson = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const lesson = await Lesson.findOne({ _id: id, teacher: req.user._id })
+      .populate("language", "name code")
+      .populate("preferredLanguage", "name code");
+    if (!lesson) throw new AppError('Lesson not found or not yours', 404);
+
+    const quiz = await generateQuiz(lesson);
+    sendSuccess(res, 200, 'Quiz generated', { lesson,quiz });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// controllers/lessonController.js (add)
+exports.updateQuizForLesson = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { title, passingScore, questions } = req.body;
+
+    const lesson = await Lesson.findOne({ _id: id, teacher: req.user._id });
+    if (!lesson) throw new AppError('Lesson not found or not yours', 404);
+
+    let quiz = await Quiz.findOne({ lessonId: id });
+    if (!quiz) {
+      quiz = new Quiz({ lessonId: id });
+    }
+    if (title) quiz.title = title;
+    if (passingScore !== undefined) quiz.passingScore = passingScore;
+    if (questions) quiz.questions = questions;
+    await quiz.save();
+
+    lesson.quiz = quiz._id;
+    await lesson.save();
+
+    sendSuccess(res, 200, 'Quiz updated', { quiz });
   } catch (error) {
     next(error);
   }

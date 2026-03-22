@@ -4,7 +4,7 @@ const Joi = require("joi");
 // Lesson
 exports.addLessonSchema = Joi.object({
   language: Joi.string().required(),
-  preferedLanguage: Joi.string().required(),
+  preferredLanguage: Joi.string().required(),
   level: Joi.number().integer().min(1).max(5),
   title: Joi.string().min(3).max(40).required(),
   desc: Joi.string().min(3).max(150).required(),
@@ -12,7 +12,7 @@ exports.addLessonSchema = Joi.object({
 
 exports.updateLessonSchema = Joi.object({
   language: Joi.string(),
-  preferedLanguage: Joi.string(),
+  preferredLanguage: Joi.string(),
   level: Joi.number().integer().min(1).max(5),
   title: Joi.string().min(3).max(40),
   desc: Joi.string().min(3).max(150),
@@ -23,13 +23,15 @@ exports.updateLessonSchema = Joi.object({
 exports.addSectionSchema = Joi.object({
   lessonId: Joi.string().required(),
   title: Joi.string().required(),
-  description: Joi.string(),
   order: Joi.number().integer(),
+  contentBlocks: Joi.optional(),
+  resourceIds: Joi.optional(),
 });
 
 exports.updateSectionSchema = Joi.object({
   title: Joi.string(),
-  description: Joi.string(),
+  contentBlocks: Joi.optional(),
+  resourceIds: Joi.optional(),
   order: Joi.number().integer(),
 }).min(1);
 
