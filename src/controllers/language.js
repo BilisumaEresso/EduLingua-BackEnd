@@ -2,6 +2,7 @@ const { Language } = require("../models");
 const AppError = require("../utils/AppError");
 const sendSuccess = require("../utils/sendSuccess");
 
+const normalize = (str) => str.trim().toLowerCase();
 // Get all active languages
 const getAllLang = async (req, res, next) => {
   try {
@@ -15,25 +16,14 @@ const getAllLang = async (req, res, next) => {
 // Add a new language (only super admin)
 const addLang = async (req, res, next) => {
   try {
-    const { name, code } = req.body;
+    const { name, code, nativeName, direction } = req.body;
 
-    // Check if name or code already exists (case-insensitive? adjust as needed)
-    const existingName = await Language.findOne({ name });
-    if (existingName) {
-      throw new AppError("Language with this name already exists", 400);
-    }
-
-    const existingCode = await Language.findOne({ code });
-    if (existingCode) {
-      throw new AppError("Language with this code already exists", 400);
-    }
-
-    const lang = new Language({
+    const lang = await Language.create({
       name,
       code,
-      isActive: true,
+      nativeName,
+      direction: direction || "ltr",
     });
-    await lang.save();
 
     sendSuccess(res, 201, "Language added successfully", { lang });
   } catch (error) {
@@ -59,7 +49,7 @@ const getLang = async (req, res, next) => {
 const updateLang = async (req, res, next) => {
   try {
     const { code } = req.params; // code of the language to update
-    const { name, code: newCode, isActive } = req.body;
+    let { name, code: newCode, isActive, nativeName, direction } = req.body;
 
     // Find the language
     const lang = await Language.findOne({ code });
@@ -68,6 +58,7 @@ const updateLang = async (req, res, next) => {
     }
 
     // If updating name, check uniqueness
+    name=normalize(name)
     if (name && name !== lang.name) {
       const nameExists = await Language.findOne({
         name,
@@ -100,6 +91,12 @@ const updateLang = async (req, res, next) => {
     // Update isActive if provided
     if (isActive !== undefined) {
       lang.isActive = isActive;
+    }
+    if (nativeName !== undefined) {
+      lang.nativeName = nativeName;
+    }
+    if (direction !== undefined) {
+      lang.direction = direction;
     }
 
     await lang.save();

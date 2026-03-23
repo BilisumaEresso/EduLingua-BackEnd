@@ -6,14 +6,14 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: true,
       trim: true,
-      unique: true, // Added unique to prevent duplicate usernames
+      unique: true,
     },
     fullName: {
       type: String,
       required: true,
       trim: true,
-      minlength: 3, // Corrected syntax
-      maxlength: 30, // Corrected syntax
+      minlength: 3,
+      maxlength: 50,
     },
     email: {
       type: String,
@@ -25,7 +25,6 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       required: true,
-      // Note: Don't trim passwords, as spaces can be part of a secure pass
     },
     role: {
       type: String,
@@ -42,37 +41,32 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    // prem user access is different
     isPremium: {
       type: Boolean,
       default: false,
     },
-    // counts chat with ai chat box and limits for one day
-    chatCount: {
-      type: Number,
-      default: 0,
-    },
-    countResetsAt: {
-      type: Date,
-    },
-    // The user's primary/native tongue
+    // AI chat quota
+    chatCount: { type: Number, default: 0 },
+    countResetsAt: { type: Date },
     nativeLanguage: {
-      type: String,
-      default: "english",
-      lowercase: true,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Language",
+      required: true,
     },
     teacherRequested: { type: Boolean, default: false },
-    // User category for marketing/content tailoring
     accountType: {
-      // Renamed from 'type' to avoid confusion with Mongoose reserved keywords
       type: String,
       default: "individual",
       enum: ["student", "enterprise", "individual", "teacher"],
     },
+    progress: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "UserProgress",
+      },
+    ],
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
 
 const User = mongoose.model("User", userSchema);

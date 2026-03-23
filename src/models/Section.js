@@ -4,36 +4,78 @@ const contentBlockSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: [
-      "video",
       "translation",
-      "pronunciation_tip",
-      "table",
+      "explanation",
+      "example",
+      "exercise",
+      "pronunciation",
       "hint",
-      "ai_explanation",
     ],
     required: true,
   },
-  // flexible to store multiple languages
-  data: { type: mongoose.Schema.Types.Mixed, required: true },
-  isAiGenerated: { type: Boolean, default: true },
-  metadata: {
-    lastEditedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
+
+  payload: {
+    text: String,
+    translations: {
+      source: String,
+      target: String,
+      alternatives: [String],
+    },
+    examples: [
+      {
+        source: String,
+        target: String,
+      },
+    ],
+    question: String,
+    answer: String,
+    hint: String,
+  },
+
+  isAiGenerated: {
+    type: Boolean,
+    default: true,
   },
 });
 
-const sectionSchema = new mongoose.Schema({
-  lesson: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Lesson",
-    required: true,
+const sectionSchema = new mongoose.Schema(
+  {
+    lesson: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Lesson",
+      required: true,
+      index: true,
+    },
+    title: {
+      type: String,
+      required: true,
+    },
+    order: {
+      type: Number,
+      required: true,
+    },
+    objective: {
+      type: String,
+      required: true,
+    },
+    contentBlocks: [contentBlockSchema],
+    skills: [
+      {
+        type: String,
+        enum: ["vocabulary", "grammar", "conversation", "listening"],
+      },
+    ],
+    aiMeta: {
+      promptSnapshot: String,
+      difficulty: String,
+    },
+    // ✅ removed resource from section
   },
-  title: { type: String, required: true },
-  order: { type: Number, default: 0 },
-  ContentBlocks: [contentBlockSchema],
-  resource: [{ type: mongoose.Schema.Types.ObjectId, ref: "Resource" }],
-});
+  { timestamps: true },
+);
+
+// ensure order uniqueness inside lesson
+sectionSchema.index({ lesson: 1, order: 1 }, { unique: true });
 
 const Section = mongoose.model("Section", sectionSchema);
 

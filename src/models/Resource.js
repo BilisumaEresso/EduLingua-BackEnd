@@ -1,15 +1,29 @@
-const mongoose=require("mongoose")
+const mongoose = require("mongoose");
 
 const resourceSchema = new mongoose.Schema(
   {
-    title: String,
-    type: { type: String, enum: ["pdf", "link", "audio", "image"] },
-    url: String,
-    uploadedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Teacher ID
-    tags: [String],
+    title: { type: String, required: true, trim: true },
+    type: {
+      type: String,
+      enum: ["pdf", "link", "audio", "image"],
+      required: true,
+    },
+    url: { type: String, required: true },
+    uploadedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    tags: [String], // for search/filter
+    lessons: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Lesson",
+      },
+    ], // links resource to lessons
   },
   { timestamps: true },
 );
- 
- const Resource=mongoose.model('Resource',resourceSchema)
- module.exports = Resource;
+
+const Resource = mongoose.model("Resource", resourceSchema);
+module.exports = Resource;

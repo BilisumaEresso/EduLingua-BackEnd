@@ -1,38 +1,47 @@
-// models/UserProgress.js
 const mongoose = require("mongoose");
 
-const UserProgressSchema = new mongoose.Schema(
+const userProgressSchema = new mongoose.Schema(
   {
-    userId: {
+    user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    languageId: {
+    learning: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Language",
+      ref: "Learning",
       required: true,
     },
     overallLevel: { type: Number, default: 1, min: 1, max: 5 },
-    currentLessonId: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson" },
+    currentLevel: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Level",
+    },
+    currentLesson: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Lesson",
+    },
     completedLessons: [
       {
-        lessonId: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson" },
-        quizScore: Number,
+        lesson: { type: mongoose.Schema.Types.ObjectId, ref: "Lesson" },
+        quizScore: { type: Number, min: 0, max: 100 },
         completedAt: { type: Date, default: Date.now },
       },
     ],
     completedSections: [
       { type: mongoose.Schema.Types.ObjectId, ref: "Section" },
-    ], // new
-    xp: { type: Number, default: 0 }, // new
-    streak: { type: Number, default: 0 }, // new
-    lastActivityDate: { type: Date, default: Date.now }, // new
+    ],
+    xp: { type: Number, default: 0 },
+    streak: { type: Number, default: 0 },
+    lastActivityDate: { type: Date, default: Date.now },
+    // AI tracking per user
+    aiChatCount: { type: Number, default: 0 },
+    aiChatResetAt: { type: Date },
   },
   { timestamps: true },
 );
 
-UserProgressSchema.index({ userId: 1, languageId: 1 }, { unique: true });
+userProgressSchema.index({ user: 1, learning: 1 }, { unique: true });
 
-const UserProgress = mongoose.model("UserProgress", UserProgressSchema);
+const UserProgress = mongoose.model("UserProgress", userProgressSchema);
 module.exports = UserProgress;
