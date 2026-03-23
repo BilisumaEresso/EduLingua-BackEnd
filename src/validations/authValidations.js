@@ -1,45 +1,43 @@
-// validations/authValidations.js
 const Joi = require("joi");
 
+// SIGNUP validation
 const signupSchema = Joi.object({
   email: Joi.string().email().required(),
   username: Joi.string().alphanum().min(3).max(30).required(),
   fullName: Joi.string().min(3).max(50).required(),
   password: Joi.string().min(6).required(),
-  nativeLanguage: Joi.string().required(), // adjust if language is ObjectId
+  nativeLanguage: Joi.string().required(), // ObjectId string of Language
 });
 
+// LOGIN validation
 const loginSchema = Joi.object({
   email: Joi.string().email(),
   username: Joi.string().alphanum().min(3).max(30),
   password: Joi.string().required(),
-}).xor("email", "username"); // exactly one of email or username
+}).xor("email", "username"); // Require exactly one of email or username
 
+// UPDATE USER validation
 const updateUserSchema = Joi.object({
   email: Joi.string().email(),
   username: Joi.string().alphanum().min(3).max(30),
   fullName: Joi.string().min(3).max(50),
-  nativeLanguage: Joi.string(),
-}).min(1); // at least one field to update
+  nativeLanguage: Joi.string(), // ObjectId string
+}).min(1); // Require at least one field
 
+// CHANGE PASSWORD validation
 const changePasswordSchema = Joi.object({
   password: Joi.string().required(),
   newPassword: Joi.string().min(6).required(),
 });
 
-// validations/authValidations.js (add these schemas)
-const premiumSchema = Joi.object({
-  // possibly no body, just the action
-});
+// PREMIUM upgrade validation
+const premiumSchema = Joi.object({}); // no body required
 
-const teacherApplySchema = Joi.object({
-  // maybe additional info like bio, etc.
-  // for now, empty body
-});
+// TEACHER application validation
+const teacherApplySchema = Joi.object({}); // no body for now
 
-const unsubscribeSchema = Joi.object({
-  // empty body
-});
+// UNSUBSCRIBE PREMIUM validation
+const unsubscribeSchema = Joi.object({}); // no body required
 
 module.exports = {
   signupSchema,
@@ -48,5 +46,5 @@ module.exports = {
   changePasswordSchema,
   premiumSchema,
   teacherApplySchema,
-  unsubscribeSchema
+  unsubscribeSchema,
 };

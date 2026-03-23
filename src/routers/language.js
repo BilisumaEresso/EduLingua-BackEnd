@@ -1,21 +1,40 @@
 const express = require("express");
+const validate = require("../utils/validate");
+const languageValidator = require("../validations/languageValidator");
 const sendSuccess = require("../utils/sendSuccess");
+
 const {
-  getAllLang,
   addLang,
-  getLang,
   updateLang,
+  getAllLang,
+  getLang,
   deleteLang,
 } = require("../controllers/language");
+
 const isAuth = require("../middleware/isAuth");
 const isSuperAdmin = require("../middleware/isSuperAdmin");
 
 const router = express.Router();
 
-router.post("/add", isAuth, isSuperAdmin, addLang);
-router.get("/:code", getLang);
+// Add a language (super admin only)
+router.post("/add", isAuth, isSuperAdmin, validate(languageValidator), addLang);
+
+// Get all languages (public)
 router.get("/", getAllLang);
-router.put("/update/:code", isAuth, isSuperAdmin, updateLang); // path parameter: language code to update
-router.delete("/delete/:code", isAuth, isSuperAdmin, deleteLang); // path parameter: language code to delete
+
+// Get a single language by ID (public)
+router.get("/:id", getLang);
+
+// Update a language (super admin only)
+router.put(
+  "/update/:id",
+  isAuth,
+  isSuperAdmin,
+  validate(languageValidator),
+  updateLang,
+);
+
+// Soft delete a language (super admin only)
+router.delete("/delete/:id", isAuth, isSuperAdmin, deleteLang);
 
 module.exports = router;

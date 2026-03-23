@@ -1,6 +1,8 @@
-// routes/authRoutes.js
 const express = require("express");
 const sendSuccess = require("../utils/sendSuccess");
+const validate = require("../utils/validate");
+const isAuth = require("../middleware/isAuth");
+
 const {
   signup,
   login,
@@ -11,8 +13,7 @@ const {
   applyForTeacher,
   unsubscribePremium,
 } = require("../controllers/auth");
-const isAuth = require("../middleware/isAuth");
-const validate = require("../utils/validate");
+
 const {
   signupSchema,
   loginSchema,
@@ -46,7 +47,7 @@ router.put(
 );
 router.delete("/delete", isAuth, deleteUser);
 
-// New endpoints
+// Premium / teacher routes
 router.put("/premium", isAuth, validate(premiumSchema), upgradeToPremium);
 router.post(
   "/teacher/apply",
