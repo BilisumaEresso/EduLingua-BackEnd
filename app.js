@@ -5,8 +5,15 @@ const {errorHandler}=require("./src/middleware/errorHandler")
 const AppError = require("./src/utils/AppError")
 const sendSuccess = require("./src/utils/sendSuccess")
 const {authRoute, langRoute, lessonRoute, chatRoute, adminRoute, userProgressRoute, learningRoute, levelRoute, sectionRoute, quizRoute, aiRoute}=require("./src/routers")
+const cors=require("cors")
 
 app.use(express.json({ limit: "10kb" }));
+app.use(
+  cors({
+    origin: "http://localhost:5173", // your frontend URL
+    credentials: true, // if using cookies / auth headers
+  }),
+);
 
 // routers
 app.use("/api/v1/auth",authRoute)

@@ -9,7 +9,7 @@ const sendSuccess = require("../utils/sendSuccess");
 exports.getMyChat = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const { languageId } = req.query;
+    const languageId  = req.user.nativeLanguage._id;
 
     if (!languageId) {
       throw new AppError("languageId is required", 400);

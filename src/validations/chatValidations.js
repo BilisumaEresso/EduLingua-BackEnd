@@ -2,7 +2,7 @@
 const Joi = require("joi");
 
 exports.sendMessageSchema = Joi.object({
-  languageId: Joi.string().required(),
+  languageId: Joi.string().optional(),
   message: Joi.string().min(1).max(1000).required(),
 });
 
