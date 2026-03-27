@@ -1,18 +1,32 @@
-const express=require("express")
+// routes/chatRoutes.js
+const express = require("express");
+const router = express.Router();
 
-const router=express.Router()
+const isAuth = require("../middleware/isAuth");
+const validate = require("../utils/validate");
 
-router.get("/my-chat", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.post("/send", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.put("/update/:id", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
-router.delete("/delete/:id", (req, res, next) => {
-  sendSuccess(res, 200, "this is success");
-});
+const {
+  getMyChat,
+  sendMessage,
+  updateMemory,
+  deleteSession,
+} = require("../controllers/chat");
 
-module.exports=router
+const {
+  sendMessageSchema,
+  updateMemorySchema,
+} = require("../validations/chatValidations");
+
+// 🔹 get or create session
+router.get("/my-chat", isAuth, getMyChat);
+
+// 🔹 send message
+router.post("/send", isAuth, validate(sendMessageSchema), sendMessage);
+
+// 🔹 update AI memory
+router.put("/update/:id", isAuth, validate(updateMemorySchema), updateMemory);
+
+// 🔹 delete session
+router.delete("/delete/:id", isAuth, deleteSession);
+
+module.exports = router;

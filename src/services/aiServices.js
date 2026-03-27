@@ -21,8 +21,10 @@ const normalizeLanguage = (name) => {
 
 const extractJSON = (text) => {
   try {
+    // Try to clean markdown
+    const cleanText = text.replace(/```json/gi, "").replace(/```/g, "").trim();
     // Try direct parse first
-    return JSON.parse(text);
+    return JSON.parse(cleanText);
   } catch (e) {
     // fallback extraction
     const match = text.match(/\{[\s\S]*\}/);
@@ -130,7 +132,7 @@ If level is 1, keep content very simple.
 Generate sections now.
 `;
 
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     try {
       const raw = await callAI(
         [
@@ -208,46 +210,48 @@ Description: ${lesson.desc}
 Generate the quiz now.
 `;
 
-  const raw = await callAI(
-    [
-      { role: "system", content: systemMessage },
-      { role: "user", content: userMessage },
-    ],
-    0.3,
-    1500,
-  );
+  for (let i = 0; i < 3; i++) {
+    try {
+      const raw = await callAI(
+        [
+          { role: "system", content: systemMessage },
+          { role: "user", content: userMessage },
+        ],
+        0.3,
+        1500,
+      );
 
-  try {
-    const quiz = extractJSON(raw);
+      const quiz = extractJSON(raw);
 
-    if (!quiz || !Array.isArray(quiz.questions)) {
-      throw new Error("Invalid quiz structure");
-    }
-
-    for (const q of quiz.questions) {
-      if (
-        !q.question ||
-        !Array.isArray(q.options) ||
-        q.options.length !== 4 ||
-        !q.answer
-      ) {
-        throw new Error("Invalid question format");
+      if (!quiz || !Array.isArray(quiz.questions)) {
+        throw new Error("Invalid quiz structure");
       }
 
-      const options = q.options.map((o) => o.trim().toLowerCase());
-      const answer = q.answer.trim().toLowerCase();
+      for (const q of quiz.questions) {
+        if (
+          !q.question ||
+          !Array.isArray(q.options) ||
+          q.options.length !== 4 ||
+          !q.answer
+        ) {
+          throw new Error("Invalid question format");
+        }
 
-      if (!options.includes(answer)) {
-        throw new Error("Answer not in options");
+        const options = q.options.map((o) => o.trim().toLowerCase());
+        const answer = q.answer.trim().toLowerCase();
+
+        if (!options.includes(answer)) {
+          throw new Error("Answer not in options");
+        }
       }
-    }
 
-    return quiz;
-  } catch (err) {
-    console.error("error :", err);
-    console.error("QUIZ RAW RESPONSE:", raw);
-    throw new Error("Invalid quiz format");
+      return quiz;
+    } catch (err) {
+      console.log(err, "Retrying quiz generation...");
+    }
   }
+
+  throw new Error("Invalid quiz format after retries");
 };
 
 /* -------------------- CHAT -------------------- */

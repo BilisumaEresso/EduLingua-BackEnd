@@ -69,6 +69,10 @@ const sectionSchema = new mongoose.Schema(
       promptSnapshot: String,
       difficulty: String,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
     // ✅ removed resource from section
   },
   { timestamps: true },

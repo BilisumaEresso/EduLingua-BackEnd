@@ -38,7 +38,7 @@ const contentBlockValidator = Joi.object({
 const sectionValidator = Joi.object({
   lesson: Joi.string().required(),
   title: Joi.string().min(2).max(100).required(),
-  order: Joi.number().required(),
+  order: Joi.number().optional(),
   objective: Joi.string().min(3).max(300).required(),
   contentBlocks: Joi.array().items(contentBlockValidator).optional(),
   skills: Joi.array()
@@ -56,7 +56,7 @@ const bulkSectionSchema = Joi.object({
   sections: Joi.array()
     .items(
       Joi.object({
-        order: Joi.number().required(),
+        order: Joi.number().optional(),
         title: Joi.string().required(),
         objective: Joi.string().required(),
         contentBlocks: Joi.array().required(),

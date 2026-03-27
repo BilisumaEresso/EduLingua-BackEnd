@@ -48,12 +48,26 @@ const createLesson = async (req, res, next) => {
     const levelExists = await Level.findById(level);
     if (!levelExists) throw new AppError("Level not found", 404);
 
-    // Check duplicate order
-    const exists = await Lesson.findOne({ level, order });
-    if (exists)
-      throw new AppError("Lesson order already exists for this level", 400);
+    let finalOrder = order;
 
-    const lesson = await Lesson.create(req.body);
+    if (finalOrder !== undefined && finalOrder !== null) {
+      // Check duplicate order
+      const exists = await Lesson.findOne({ level, order: finalOrder });
+      if (exists)
+        throw new AppError("Lesson order already exists for this level", 400);
+    } else {
+      const lastLesson = await Lesson.findOne({ level })
+        .sort({ order: -1 })
+        .select("order");
+      finalOrder = lastLesson ? lastLesson.order + 1 : 1;
+    }
+
+    const payload = { ...req.body, order: finalOrder };
+    const lesson = await Lesson.create(payload);
+
+    // Push lesson to Level
+    await Level.findByIdAndUpdate(level, { $push: { lessons: lesson._id } });
+
     sendSuccess(res, 201, "Lesson created successfully", { lesson });
   } catch (error) {
     next(error);

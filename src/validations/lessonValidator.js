@@ -3,7 +3,7 @@ const Joi = require("joi");
 const lessonValidator = Joi.object({
   level: Joi.string().required(), // Level ObjectId
   teacher: Joi.string().required(), // User ObjectId
-  order: Joi.number().required(),
+  order: Joi.number().optional(),
   title: Joi.string().min(3).max(80).required(),
   description: Joi.string().min(3).max(300).required(),
   objective: Joi.string().min(3).max(500).required(),

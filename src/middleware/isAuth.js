@@ -25,7 +25,7 @@ const isAuth = async (req, res, next) => {
     );
 
     const { userId } = decoded;
-    const userData = await User.findById(userId).select("-password -__v");
+    const userData = await User.findById(userId).select("-password -__v").populate("nativeLanguage", "name code").populate("promotedBy", "fullName");
     if(!userData){
       throw new AppError("user not found",401)
     }
