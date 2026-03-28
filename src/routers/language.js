@@ -30,7 +30,6 @@ router.put(
   "/update/:id",
   isAuth,
   isSuperAdmin,
-  validate(languageValidator),
   updateLang,
 );
 

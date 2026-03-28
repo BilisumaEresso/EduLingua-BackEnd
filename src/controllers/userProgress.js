@@ -11,11 +11,12 @@ const getUserProgress = async (req, res, next) => {
     const query = { user: userId };
     if (learningId) query.learning = learningId;
 
-    const progress = await UserProgress.findOne(query)
+    const progress = await UserProgress.find(query)
       .populate("currentLevel")
       .populate("currentLesson")
       .populate("completedLessons.lesson")
-      .populate("completedSections");
+      .populate("completedSections")
+      .populate("learning");
 
     if (!progress) throw new AppError("Progress not found", 404);
 
@@ -26,6 +27,7 @@ const getUserProgress = async (req, res, next) => {
 };
 
 // Start a new learning track
+// controllers/progress.js
 const startLearningTrack = async (req, res, next) => {
   try {
     const userId = req.user._id;
@@ -33,34 +35,50 @@ const startLearningTrack = async (req, res, next) => {
 
     const exists = await UserProgress.findOne({ user: userId, learning });
     if (exists)
-      throw new AppError("Progress for this track already exists", 400);
+      return sendSuccess(res, 200, "Already enrolled", { progress: exists });
 
-    // Fetch first level and first lesson for initialization
-    const learningTrack = await Learning.findById(learning).populate({
-      path: "levels",
-      populate: { path: "lessons" },
-    });
-    if (!learningTrack) throw new AppError("Learning track not found", 404);
+    // 1. Simply populate levels and lessons without the nested sort option
+    const track = await Learning.findById(learning).populate("levels.lessons");
+    if (!track) throw new AppError("Learning track not found", 404);
 
-    const firstLevel = learningTrack.levels[0];
-    const firstLesson = firstLevel?.lessons?.[0] || null;
+    // 2. Sort the levels and lessons manually to get the true "first" items
+    const sortedLevels = track.levels.sort(
+      (a, b) => a.levelNumber - b.levelNumber,
+    );
+    const firstLevel = sortedLevels[0];
 
-    const newProgress = await UserProgress.create({
-      user: userId,
-      learning,
-      overallLevel: 1,
-      currentLevel: firstLevel?._id,
-      currentLesson: firstLesson?._id,
-      xp: 0,
-      streak: 0,
-      lastActivityDate: new Date(),
-    });
+    // Sort the lessons within that level
+    const sortedLessons =
+      firstLevel?.lessons?.sort((a, b) => a.order - b.order) || [];
+    const firstLesson = sortedLessons[0] || null;
 
-    sendSuccess(res, 201, "Learning track started", { progress: newProgress });
+    // 3. Create the progress
+    try {
+      const newProgress = await UserProgress.create({
+        user: userId,
+        learning,
+        overallLevel: 1,
+        currentLevel: firstLevel?._id,
+        currentLesson: firstLesson?._id,
+        xp: 0,
+        streak: 0,
+        lastActivityDate: new Date(),
+      });
+      sendSuccess(res, 201, "Learning track started", {
+        progress: newProgress,
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        const redo = await UserProgress.findOne({ user: userId, learning });
+        return sendSuccess(res, 200, "Already enrolled", { progress: redo });
+      }
+      throw err;
+    }
   } catch (error) {
     next(error);
   }
 };
+
 
 // Mark lesson completed with auto next lesson/level logic
 const markLessonCompleted = async (req, res, next) => {

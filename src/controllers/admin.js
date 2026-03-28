@@ -1,5 +1,5 @@
 // controllers/admin.js
-const { User, Lesson, Quiz, UserProgress, ChatSession } = require("../models");
+const { User, Lesson, Quiz, UserProgress, ChatSession, Language } = require("../models");
 const AppError = require("../utils/AppError");
 const sendSuccess = require("../utils/sendSuccess");
 
@@ -122,7 +122,14 @@ const shutdownSystem = async (req, res, next) => {
 };
 
 // ------------------- Admin & Super‑Admin (shared) -------------------
-
+const getAllLang = async (req, res, next) => {
+  try {
+    const langs = await Language.find().sort({ name: 1 });
+    sendSuccess(res, 200, "Languages fetched successfully", { langs });
+  } catch (error) {
+    next(error);
+  }
+};
 // Get all users (with role‑based filter)
 const getUsers = async (req, res, next) => {
   try {
@@ -284,6 +291,8 @@ const getDashboardStats = async (req, res, next) => {
       totalPremium,
       totalTeachers,
       totalLearners,
+      totalLanguages,
+      activeLanguages
     ] = await Promise.all([
       User.countDocuments(),
       Lesson.countDocuments(),
@@ -291,6 +300,8 @@ const getDashboardStats = async (req, res, next) => {
       User.countDocuments({ isPremium: true }),
       User.countDocuments({ role: "teacher" }),
       User.countDocuments({ role: "learner" }),
+      Language.countDocuments(),
+      Language.countDocuments({isActive:true}),
     ]);
 
     // Super‑admin gets more details
@@ -301,6 +312,8 @@ const getDashboardStats = async (req, res, next) => {
       totalPremium,
       totalTeachers,
       totalLearners,
+      totalLanguages,
+      activeLanguages
     };
 
     if (isSuper) {
@@ -407,4 +420,5 @@ module.exports = {
   getLessons,
   getQuizzes,
   getDashboardStats,
+  getAllLang,
 };

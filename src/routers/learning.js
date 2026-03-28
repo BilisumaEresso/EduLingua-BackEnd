@@ -30,7 +30,6 @@ router.put(
   "/update/:id",
   isAuth,
   isSuperAdmin,
-  validate(learningValidator),
   updateLearning,
 );
 router.delete("/delete/:id", isAuth, isSuperAdmin, deleteLearning);

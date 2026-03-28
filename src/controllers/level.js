@@ -6,9 +6,14 @@ const sendSuccess = require("../utils/sendSuccess");
 const getAllLevels = async (req, res, next) => {
   try {
     const { learningId } = req.query;
-    if (!learningId) throw new AppError("learningId query param required", 400);
-
-    const levels = await Level.find({ learning: learningId, isActive: true })
+    if (learningId) {
+      const levels = await Level.find({ learning: learningId, isActive: true })
+        .populate("lessons")
+        .sort({ order: 1 });
+      sendSuccess(res, 200, "Levels fetched successfully", { levels });
+      return;
+    }
+    const levels = await Level.find({ isActive: true })
       .populate("lessons")
       .sort({ order: 1 });
 

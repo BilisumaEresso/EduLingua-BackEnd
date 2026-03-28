@@ -15,6 +15,7 @@ const {
   getLessons,
   getQuizzes,
   getDashboardStats,
+  getAllLang,
 } = require("../controllers/admin");
 
 const router = express.Router();
@@ -29,6 +30,7 @@ router.put("/shut-system", isAuth, isSuperAdmin, shutdownSystem);
 
 // Admin & Super‑admin (both can access)
 router.get("/all-user", isAuth, isAdmin, getUsers);
+router.get("/all-langs", isAuth, isAdmin, getAllLang);
 router.get("/user/:id", isAuth, isAdmin, getUser);
 router.get("/all-lesson", isAuth, isAdmin, getLessons);
 router.get("/all-quiz", isAuth, isAdmin, getQuizzes);
