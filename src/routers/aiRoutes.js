@@ -12,7 +12,6 @@ const {
 const {
   generateSectionSchema,
   generateQuizSchema,
-  chatSchema,
 } = require("../validations/aiValidations");
 
 const router = express.Router();

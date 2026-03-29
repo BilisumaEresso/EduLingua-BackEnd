@@ -4,6 +4,7 @@ const Joi = require("joi");
 const generateSectionSchema = Joi.object({
   lessonId: Joi.string().required(),
   retries: Joi.number().min(1).max(5).default(2),
+  maxSections: Joi.number().optional()
 });
 
 const generateQuizSchema = Joi.object({

@@ -39,7 +39,6 @@ router.put(
   "/update/:id",
   isAuth,
   isSuperAdmin,
-  validate(sectionValidator),
   updateSection,
 );
 router.delete("/delete/:id", isAuth, isSuperAdmin, deleteSection);

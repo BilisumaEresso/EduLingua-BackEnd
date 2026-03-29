@@ -1,4 +1,3 @@
-// services/aiService.js
 const ModelClient = require("@azure-rest/ai-inference").default;
 const { isUnexpected } = require("@azure-rest/ai-inference");
 const { AzureKeyCredential } = require("@azure/core-auth");
@@ -21,21 +20,25 @@ const normalizeLanguage = (name) => {
 
 const extractJSON = (text) => {
   try {
-    // Try to clean markdown
-    const cleanText = text.replace(/```json/gi, "").replace(/```/g, "").trim();
-    // Try direct parse first
+    // 1. Try cleaning markdown blocks
+    const cleanText = text
+      .replace(/```json/gi, "")
+      .replace(/```/g, "")
+      .trim();
     return JSON.parse(cleanText);
   } catch (e) {
-    // fallback extraction
-    const match = text.match(/\{[\s\S]*\}/);
-    if (!match) throw new Error("No JSON object found");
-    return JSON.parse(match[0]);
+    // 2. Fallback: regex extraction for first { or [ object
+    const match = text.match(/[\{\[]\s*[\s\S]*[\}\]]/);
+    if (!match) throw new Error("No JSON structure found in AI response");
+    try {
+      return JSON.parse(match[0]);
+    } catch (inner) {
+      throw new Error("Extracted JSON is malformed");
+    }
   }
 };
 
-/* -------------------- CORE AI CALL -------------------- */
-
-const callAI = async (messages, temperature = 0.3, maxTokens = 2000) => {
+const callAI = async (messages, temperature = 0.3, maxTokens = 2500) => {
   try {
     const response = await client.path("/chat/completions").post({
       body: {
@@ -54,132 +57,156 @@ const callAI = async (messages, temperature = 0.3, maxTokens = 2000) => {
     return response.body.choices[0].message.content;
   } catch (error) {
     console.error("AI API ERROR:", error);
-    throw new Error("Failed to get AI response");
+    throw new Error("Failed to reach AI service");
   }
 };
 
 /* -------------------- VALIDATION -------------------- */
 
-const isAmharic = (text) => /[\u1200-\u137F]/.test(text);
-
-const validateSections = (sections) => {
-  if (!Array.isArray(sections) || sections.length !== 3) {
-    throw new Error("Invalid sections count");
+const validateSections = (sections, requestedCount) => {
+  if (!Array.isArray(sections) || sections.length === 0) {
+    throw new Error("Generated content is not an array");
   }
 
-  for (const section of sections) {
+  // Optional: enforcement of exact count if strictness is required
+  // if (sections.length !== requestedCount) throw new Error(`Count mismatch: ${sections.length}/${requestedCount}`);
+
+  for (const [idx, section] of sections.entries()) {
     if (!section.title || !Array.isArray(section.contentBlocks)) {
-      throw new Error("Invalid section structure");
+      throw new Error(`Section ${idx + 1} is missing title or contentBlocks`);
     }
 
-    const hasTranslation = section.contentBlocks.some(
-      (b) => b.type === "translation",
-    );
-
-    const hasExplanation = section.contentBlocks.some(
-      (b) => b.type === "ai_explanation",
-    );
-
-    if (!hasTranslation || !hasExplanation) {
-      throw new Error("Missing required blocks");
-    }
+    // Validate blocks internal structure
+    section.contentBlocks.forEach((block, bIdx) => {
+      if (
+        ![
+          "translation",
+          "explanation",
+          "example",
+          "exercise",
+          "pronunciation",
+          "hint",
+        ].includes(block.type)
+      ) {
+        throw new Error(
+          `Invalid block type '${block.type}' in section ${idx + 1}`,
+        );
+      }
+      if (!block.payload || typeof block.payload !== "object") {
+        throw new Error(
+          `Block ${bIdx + 1} in section ${idx + 1} is missing 'payload' object`,
+        );
+      }
+    });
   }
 };
 
 /* -------------------- GENERATE SECTIONS -------------------- */
 
-exports.generateSections = async (lesson) => {
-  const teachingLanguage = normalizeLanguage(lesson.language?.name);
-  const targetLanguage = normalizeLanguage(lesson.preferredLanguage?.name);
+exports.generateSections = async (lesson,learning, maxSection = 3) => {
+  const teachingLanguage = normalizeLanguage(
+    learning.sourceLanguage.nativeName
+  );
+  const targetLanguage = normalizeLanguage(
+   learning.targetLanguage.nativeName
+  );
 
   const systemMessage = `
-You are a multilingual language teaching AI.
+You are a multilingual language teaching AI. Generate EXACTLY ${maxSection} sections for a lesson.
 
 STRICT RULES:
-- Teaching language: ${teachingLanguage}
-- Target language: ${targetLanguage}
+1. Use ${teachingLanguage} for ALL explanations, titles, and instructions.
+2. Use ${targetLanguage} for vocabulary, phrases, and translations.
+3. OUTPUT EXACTLY ${maxSection} SECTIONS.
+4. Output ONLY valid raw JSON. No markdown.
 
-YOU MUST:
-1. Use ${teachingLanguage} for ALL explanations, titles, hints
-2. Use ${targetLanguage} for ALL vocabulary and translations
-3. NEVER mix languages incorrectly
-4. NEVER default to English unless it is the teaching language
-5. Generate EXACTLY 3 sections
-6. Output ONLY valid JSON
+JSON SCHEMA:
+[
+  {
+    "order": number,
+    "title": "string (in ${teachingLanguage})",
+    "objective": "string (in ${teachingLanguage})",
+    "skills": ["vocabulary", "grammar", "conversation", "listening"],
+    "contentBlocks": [
+      {
+        "type": "explanation",
+        "payload": { "text": "Detailed explanation in ${teachingLanguage}" }
+      },
+      {
+        "type": "translation",
+        "payload": {
+          "translations": {
+            "source": "Text in ${teachingLanguage}",
+            "target": "Text in ${targetLanguage}"
+          }
+        }
+      },
+      {
+        "type": "example",
+        "payload": { "text": "Example usage in ${targetLanguage}" }
+      },
+      {
+        "type": "exercise",
+        "payload": {
+          "question": "Question in ${teachingLanguage}",
+          "answer": "Answer in ${targetLanguage}",
+          "hint": "Optional hint in ${teachingLanguage}"
+        }
+      }
+    ]
+  }
+]
 
-Each section must include:
-- order (1,2,3)
-- title (in ${teachingLanguage})
-- contentBlocks
-- resource (empty array if none)
-
-Each section MUST include:
-- one translation block
-- one ai_explanation block
-
-Translation format:
-"${targetLanguage}: ..., ${teachingLanguage}: ..."
+CRITICAL: Every section MUST include at least one 'explanation' and one 'translation'.
 `;
 
   const userMessage = `
-Lesson:
-Level: ${lesson.level}
-Title: ${lesson.title}
-Description: ${lesson.desc}
+Lesson Title: ${lesson.title}
+Lesson Objective: ${lesson.objective || lesson.desc}
+Level: ${lesson.level || 1}
 
-If level is 1, keep content very simple.
-
-Generate sections now.
+Generate the curriculum sections now.
 `;
 
-  for (let i = 0; i < 3; i++) {
+console.log(systemMessage)
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const raw = await callAI(
-        [
-          { role: "system", content: systemMessage },
-          { role: "user", content: userMessage },
-        ],
-        0.3,
-        2000,
-      );
+      const raw = await callAI([
+        { role: "system", content: systemMessage },
+        { role: "user", content: userMessage },
+      ]);
 
       const sections = extractJSON(raw);
-      validateSections(sections, teachingLanguage);
+      validateSections(sections, maxSection);
 
       return sections;
     } catch (err) {
-      console.log(err,"Retrying section generation...");
+      console.warn(`Attempt ${attempt} failed: ${err.message}. Retrying...`);
+      if (attempt === 3) throw err;
     }
   }
-
-  throw new Error("Failed to generate valid sections");
 };
 
 /* -------------------- GENERATE QUIZ -------------------- */
 
-exports.generateQuiz = async (lesson) => {
-  const teachingLanguage = normalizeLanguage(lesson.language?.name);
-  const targetLanguage = normalizeLanguage(lesson.preferredLanguage?.name);
+exports.generateQuiz = async (lesson,learning) => {
+   const teachingLanguage = normalizeLanguage(
+    learning.sourceLanguage.nativeName
+  );
+  const targetLanguage = normalizeLanguage(
+   learning.targetLanguage.nativeName
+  );
 
   const systemMessage = `
 You are a multilingual quiz generator AI.
+Generate 20 multiple-choice questions.
 
-STRICT RULES:
-
-1. Generate EXACTLY 5 questions.
-2. Output ONLY valid JSON.
-3. DO NOT include markdown or explanations.
-
-LANGUAGE RULES:
-- Questions MUST be in ${teachingLanguage}
-- Options MUST contain ${targetLanguage} words OR their meanings
-- Answers MUST be EXACTLY one of the options
-
-CRITICAL:
-- The answer MUST match one option EXACTLY (character by character)
-- Do NOT mix formats
-
-SCHEMA:
+RULES:
+1. Questions MUST be in ${teachingLanguage}.
+2. Options MUST contain ${targetLanguage} content.
+3. The 'answer' MUST match one 'option' EXACTLY.
+4. Output ONLY valid JSON:
 {
   "questions": [
     {
@@ -189,72 +216,29 @@ SCHEMA:
     }
   ]
 }
-
-FOR BEGINNER LEVEL:
-- Use simple vocabulary
-- Focus on translation meaning
-
-GOOD EXAMPLE:
-{
-  "question": "‘Akkam’ ትርጉሙ ምንድነው?",
-  "options": ["ሰላም", "መጽሐፍ", "ቤት", "ውሃ"],
-  "answer": "ሰላም"
-}
 `;
 
-  const userMessage = `
-Lesson:
-Title: ${lesson.title}
-Description: ${lesson.desc}
+  const userMessage = `Lesson Title: ${lesson.title}. Description: ${lesson.desc}. Generate quiz now.`;
 
-Generate the quiz now.
-`;
-
-  for (let i = 0; i < 3; i++) {
+  for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      const raw = await callAI(
-        [
-          { role: "system", content: systemMessage },
-          { role: "user", content: userMessage },
-        ],
-        0.3,
-        1500,
-      );
+      const raw = await callAI([
+        { role: "system", content: systemMessage },
+        { role: "user", content: userMessage },
+      ]);
 
-      const quiz = extractJSON(raw);
-
-      if (!quiz || !Array.isArray(quiz.questions)) {
+      const quizData = extractJSON(raw);
+      if (!quizData?.questions || !Array.isArray(quizData.questions))
         throw new Error("Invalid quiz structure");
-      }
 
-      for (const q of quiz.questions) {
-        if (
-          !q.question ||
-          !Array.isArray(q.options) ||
-          q.options.length !== 4 ||
-          !q.answer
-        ) {
-          throw new Error("Invalid question format");
-        }
-
-        const options = q.options.map((o) => o.trim().toLowerCase());
-        const answer = q.answer.trim().toLowerCase();
-
-        if (!options.includes(answer)) {
-          throw new Error("Answer not in options");
-        }
-      }
-
-      return quiz;
+      return quizData;
     } catch (err) {
-      console.log(err, "Retrying quiz generation...");
+      if (attempt === 3) throw err;
     }
   }
-
-  throw new Error("Invalid quiz format after retries");
 };
 
-/* -------------------- CHAT -------------------- */
+/* -------------------- TUTOR CHAT -------------------- */
 
 exports.chat = async (
   messages,
@@ -264,18 +248,14 @@ exports.chat = async (
 ) => {
   const systemPrompt = `
 You are a language tutor.
-
-- Teaching language: ${teachingLanguage}
-- Target language: ${targetLanguage}
-- User native language: ${userNativeLanguage || teachingLanguage}
-
-RULES:
 - Explain in ${teachingLanguage}
 - Give examples in ${targetLanguage}
-- Be simple and beginner-friendly
+- If the user asks in ${userNativeLanguage || teachingLanguage}, respond accordingly but keep target practice in ${targetLanguage}.
 `;
 
-  const fullMessages = [{ role: "system", content: systemPrompt }, ...messages];
-
-  return await callAI(fullMessages, 0.5, 1000);
+  return await callAI(
+    [{ role: "system", content: systemPrompt }, ...messages],
+    0.5,
+    1000,
+  );
 };
