@@ -1,10 +1,11 @@
 const mongoose = require("mongoose");
 
+// models/Quiz.js
 const quizQuestionSchema = new mongoose.Schema({
   section: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Section",
-    required: true, // links to source content
+    required: false, // Changed to false for AI support
   },
   questionText: { type: String, required: true },
   questionType: {
@@ -12,22 +13,32 @@ const quizQuestionSchema = new mongoose.Schema({
     enum: ["multiple_choice", "text_input", "voice_match"],
     default: "multiple_choice",
   },
-  options: [String], // for multiple choice
-  correctAnswer: { type: String, required: true },
-  explanation: String, // after user answers
-  difficulty: {
-    type: String,
-    enum: ["easy", "medium", "hard"],
-    default: "easy",
+  options: {
+    type: [String],
+    validate: {
+      validator: function(v) {
+        // Only require options if it's multiple choice
+        if (this.questionType === "multiple_choice") {
+          return v && v.length >= 2;
+        }
+        return true;
+      },
+      message: "Multiple choice questions require at least 2 options."
+    }
   },
-  skills: [
-    {
-      type: String,
-      enum: ["vocabulary", "grammar", "conversation", "listening"],
-    },
-  ],
+  correctAnswer: { type: String, required: true },
+  explanation: String,
+  difficulty: { type: String, enum: ["easy", "medium", "hard"], default: "easy" },
+  skills: {
+    type: [String],
+    enum: ["vocabulary", "grammar", "conversation", "listening"],
+    default: ["vocabulary"]
+  },
   isAiGenerated: { type: Boolean, default: true },
 });
+
+
+
 
 const quizSchema = new mongoose.Schema(
   {
@@ -52,8 +63,12 @@ const quizSchema = new mongoose.Schema(
 
 // 🔹 Helper method to get randomized questions
 quizSchema.methods.getRandomQuestions = function (count = 10) {
-  const shuffled = this.questionPool.sort(() => 0.5 - Math.random());
-  return shuffled.slice(0, count);
+  const pool = [...this.questionPool];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, count);
 };
 
 const Quiz = mongoose.model("Quiz", quizSchema);

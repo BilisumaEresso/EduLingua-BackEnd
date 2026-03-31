@@ -76,5 +76,5 @@ exports.generateQuiz = async (req, res, next) => {
     sendSuccess(res, 200, "Quiz generated", { quiz });
   } catch (err) {
     next(err);
-  }
+  } 
 };
