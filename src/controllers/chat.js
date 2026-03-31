@@ -9,7 +9,7 @@ const sendSuccess = require("../utils/sendSuccess");
 exports.getMyChat = async (req, res, next) => {
   try {
     const userId = req.user._id;
-    const languageId  = req.user.nativeLanguage._id;
+    const languageId = req.query.languageId || req.user.nativeLanguage?._id;
 
     if (!languageId) {
       throw new AppError("languageId is required", 400);
@@ -33,11 +33,18 @@ exports.getMyChat = async (req, res, next) => {
 // 🔹 SEND MESSAGE
 exports.sendMessage = async (req, res, next) => {
   try {
-    const userId = req.user._id;
-    const { languageId, message } = req.body;
+    const user = req.user
+    const payloadLanguageId = req.body.languageId;
+    const message = req.body.message;
+    const languageId = payloadLanguageId || req.user.nativeLanguage?._id;
 
-    const user = await User.findById(userId);
-    if (!user) throw new AppError("User not found", 404);
+    if (!languageId) {
+      throw new AppError("languageId is required", 400);
+    }
+
+    if (!message) {
+      throw new AppError("message is required", 400);
+    }
 
     // 🔥 DAILY QUOTA RESET — if countResetsAt has passed, clear the counter
     if (user.countResetsAt && new Date() > user.countResetsAt) {
@@ -46,14 +53,15 @@ exports.sendMessage = async (req, res, next) => {
     }
 
     // 🔥 LIMIT CHECK (premium users bypass)
-    if (!user.isPremium && user.chatCount >= 50) {
+    if (!user.isPremium && user.chatCount >= 30) {
       throw new AppError("Chat limit reached. Upgrade to premium.", 403);
     }
 
     // 🔹 find or create session (populate separately to avoid broken chain)
+    const userId=user._id
     let session = await ChatSession.findOne({ userId, languageId }).populate(
       "languageId",
-      "name code"
+      "name code",
     );
 
     if (!session) {
@@ -64,7 +72,7 @@ exports.sendMessage = async (req, res, next) => {
     // 🔹 save user message
     session.messages.push({ sender: "user", text: message });
 
-    // 🔹 AI response
+    // 🔹 AI response (model handles whether it's language-related or out of context)
     const aiReply = await chatService.generateReply(session, message, user);
 
     // 🔹 save AI message

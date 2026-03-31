@@ -1,17 +1,35 @@
 // Mock the AI service so tests don't make real HTTP calls
+const mockGenerateReply = jest.fn().mockResolvedValue("Mock AI reply");
+const mockIsLanguageRelated = jest.fn().mockReturnValue(true);
+const mockGetOutOfContextReply = jest
+  .fn()
+  .mockReturnValue(
+    "I'm sorry, your question is out of context. I can only help with language learning topics.",
+  );
+
 jest.mock("../../src/services/chatService", () => ({
-  generateReply: jest.fn().mockResolvedValue("Mock AI reply"),
+  generateReply: mockGenerateReply,
+  isLanguageRelated: mockIsLanguageRelated,
+  getOutOfContextReply: mockGetOutOfContextReply,
 }));
 
 const request = require("supertest");
 const app = require("../../app");
 const { ChatSession, User } = require("../../src/models");
+const chatService = require("../../src/services/chatService");
 const { createLanguage, createUser, tokenFor } = require("../helpers");
 
 describe("Chat API", () => {
   let user, language, token;
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+    mockIsLanguageRelated.mockReturnValue(true);
+    mockGetOutOfContextReply.mockReturnValue(
+      "I'm sorry, your question is out of context. I can only help with language learning topics.",
+    );
+    mockGenerateReply.mockResolvedValue("Mock AI reply");
+
     language = await createLanguage();
     user = await createUser(language);
     token = tokenFor(user);
@@ -56,11 +74,12 @@ describe("Chat API", () => {
       expect(count).toBe(1);
     });
 
-    it("should return 400 if languageId query param is missing", async () => {
+    it("should return 200 and use user's native language if languageId query param is missing", async () => {
       const res = await request(app)
         .get("/api/v1/chat/my-chat")
         .set("Authorization", `Bearer ${token}`);
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.session).toBeDefined();
     });
   });
 
@@ -68,6 +87,7 @@ describe("Chat API", () => {
 
   describe("POST /api/v1/chat/send", () => {
     it("should send a message and receive an AI reply", async () => {
+      mockIsLanguageRelated.mockReturnValue(true);
       const res = await request(app)
         .post("/api/v1/chat/send")
         .set("Authorization", `Bearer ${token}`)
@@ -75,6 +95,21 @@ describe("Chat API", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body.data.reply).toBe("Mock AI reply");
+      expect(chatService.generateReply).toHaveBeenCalled();
+    });
+
+    it("should let the AI decide out-of-context questions", async () => {
+      const res = await request(app)
+        .post("/api/v1/chat/send")
+        .set("Authorization", `Bearer ${token}`)
+        .send({
+          languageId: language._id.toString(),
+          message: "What is the weather today?",
+        });
+
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.reply).toBe("Mock AI reply");
+      expect(chatService.generateReply).toHaveBeenCalled();
     });
 
     it("should store both user and AI messages in the session", async () => {
@@ -161,13 +196,14 @@ describe("Chat API", () => {
       expect(res.statusCode).toBe(400);
     });
 
-    it("should return 400 if languageId body field is missing", async () => {
+    it("should fallback to user's native language if languageId body field is missing", async () => {
       const res = await request(app)
         .post("/api/v1/chat/send")
         .set("Authorization", `Bearer ${token}`)
         .send({ message: "Hello!" });
 
-      expect(res.statusCode).toBe(400);
+      expect(res.statusCode).toBe(200);
+      expect(res.body.data.reply).toBe("Mock AI reply");
     });
   });
 
@@ -191,7 +227,7 @@ describe("Chat API", () => {
 
       expect(res.statusCode).toBe(200);
       expect(res.body.data.session.aiMemorySummary).toBe(
-        "User knows basic greetings."
+        "User knows basic greetings.",
       );
     });
 

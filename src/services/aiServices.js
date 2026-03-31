@@ -200,7 +200,7 @@ exports.generateQuiz = async (lesson,learning) => {
 
   const systemMessage = `
 You are a multilingual quiz generator AI.
-Generate 20 multiple-choice questions.
+Generate 30 multiple-choice questions.
 
 RULES:
 1. Questions MUST be in ${teachingLanguage}.
