@@ -11,15 +11,16 @@ const {
   updateQuiz,
   deleteQuiz,
   getRandomQuestions,
-  saveQuiz
+  saveQuiz,getRandomQuestionsByLevel
 } = require("../controllers/quiz");
 
 const router = express.Router();
 
 // Public routes
-router.get("/", getAllQuizzes); // optional ?lessonId=
+router.get("/", getAllQuizzes); // optional ?levelId=
+router.get("/level/:levelId/random", getRandomQuestionsByLevel); // by level ID
 router.get("/:id", getQuiz);
-router.get("/:id/random", getRandomQuestions); // optional ?count=5
+router.get("/:id/random", getRandomQuestions); // by quiz ID
 
 // Protected routes
 router.post(

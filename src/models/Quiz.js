@@ -7,6 +7,11 @@ const quizQuestionSchema = new mongoose.Schema({
     ref: "Section",
     required: false, // Changed to false for AI support
   },
+  lesson: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Lesson",
+    required: false,
+  },
   questionText: { type: String, required: true },
   questionType: {
     type: String,
@@ -42,13 +47,13 @@ const quizQuestionSchema = new mongoose.Schema({
 
 const quizSchema = new mongoose.Schema(
   {
-    lesson: {
+    level: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Lesson",
+      ref: "Level",
       required: true,
-      unique: true, // one quiz per lesson
+      unique: true, // one quiz per level
     },
-    title: { type: String, default: "Lesson Review" },
+    title: { type: String, default: "Level Review" },
     passingScore: { type: Number, default: 80, min: 0, max: 100 },
     // ✅ randomizable question pool
     questionPool: [quizQuestionSchema],

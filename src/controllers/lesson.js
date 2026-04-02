@@ -5,15 +5,16 @@ const sendSuccess = require("../utils/sendSuccess");
 // Get all lessons (optionally filtered by level)
 const getAllLessons = async (req, res, next) => {
   try {
-    const { levelId } = req.query;
-
-    const filter = { isActive: true };
+    const { levelId, activeOnly } = req.query;
+    
+    // Default: only show active lessons unless activeOnly=false is specified
+    const filter = {};
+    if (activeOnly !== "false") filter.isActive = true;
     if (levelId) filter.level = levelId;
 
     const lessons = await Lesson.find(filter)
       .populate("sections")
       .populate("resources")
-      .populate("quizPool")
       .sort({ order: 1 });
 
     sendSuccess(res, 200, "Lessons fetched successfully", { lessons });
@@ -28,8 +29,7 @@ const getLesson = async (req, res, next) => {
     const { id } = req.params;
     const lesson = await Lesson.findById(id)
       .populate("sections")
-      .populate("resources")
-      .populate("quizPool");
+      .populate("resources");
     if (!lesson || !lesson.isActive)
       throw new AppError("Lesson not found", 404);
 

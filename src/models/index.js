@@ -9,6 +9,7 @@ const User=require("./User")
 const UserProgress = require("./UserProgress")
 const Learning = require("./Learning")
 const Level= require("./Level")
+const QuizAttempt = require("./QuizAttempt")
 
 
-module.exports={User,UserProgress,Language,Lesson,Quiz,ChatSession,Resource,Section,System,Learning,Level}
+module.exports={User,UserProgress,Language,Lesson,Quiz,ChatSession,Resource,Section,System,Learning,Level,QuizAttempt}

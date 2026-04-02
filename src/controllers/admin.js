@@ -1,5 +1,15 @@
 // controllers/admin.js
-const { User, Lesson, Quiz, UserProgress, ChatSession, Language } = require("../models");
+const {
+  User,
+  Lesson,
+  Quiz,
+  UserProgress,
+  ChatSession,
+  Language,
+  Learning,
+  Level,
+  QuizAttempt,
+} = require("../models");
 const AppError = require("../utils/AppError");
 const sendSuccess = require("../utils/sendSuccess");
 
@@ -255,7 +265,7 @@ const getQuizzes = async (req, res, next) => {
         .sort({ [sortField]: sortOrder })
         .skip(skip)
         .limit(limit)
-        .populate("lessonId", "title")
+        .populate("level", "title")
         .lean(),
     ]);
 
@@ -292,7 +302,7 @@ const getDashboardStats = async (req, res, next) => {
       totalTeachers,
       totalLearners,
       totalLanguages,
-      activeLanguages
+      activeLanguages,
     ] = await Promise.all([
       User.countDocuments(),
       Lesson.countDocuments(),
@@ -301,7 +311,7 @@ const getDashboardStats = async (req, res, next) => {
       User.countDocuments({ role: "teacher" }),
       User.countDocuments({ role: "learner" }),
       Language.countDocuments(),
-      Language.countDocuments({isActive:true}),
+      Language.countDocuments({ isActive: true }),
     ]);
 
     // Super‑admin gets more details
@@ -313,7 +323,7 @@ const getDashboardStats = async (req, res, next) => {
       totalTeachers,
       totalLearners,
       totalLanguages,
-      activeLanguages
+      activeLanguages,
     };
 
     if (isSuper) {
@@ -333,19 +343,34 @@ const getDashboardStats = async (req, res, next) => {
 
       // Most popular languages (based on UserProgress)
       const popularLanguages = await UserProgress.aggregate([
-        { $group: { _id: "$languageId", count: { $sum: 1 } } },
-        { $sort: { count: -1 } },
-        { $limit: 5 },
+        {
+          $lookup: {
+            from: "learnings",
+            localField: "learning",
+            foreignField: "_id",
+            as: "learningDoc",
+          },
+        },
+        { $unwind: "$learningDoc" },
         {
           $lookup: {
             from: "languages",
-            localField: "_id",
+            localField: "learningDoc.targetLanguage",
             foreignField: "_id",
-            as: "language",
+            as: "targetLanguage",
           },
         },
-        { $unwind: "$language" },
-        { $project: { name: "$language.name", count: 1 } },
+        { $unwind: "$targetLanguage" },
+        {
+          $group: {
+            _id: "$targetLanguage._id",
+            name: { $first: "$targetLanguage.name" },
+            count: { $sum: 1 },
+          },
+        },
+        { $sort: { count: -1 } },
+        { $limit: 5 },
+        { $project: { _id: 0, name: 1, count: 1 } },
       ]);
 
       // Top teachers (by number of lessons)
@@ -389,12 +414,107 @@ const getDashboardStats = async (req, res, next) => {
         { $sort: { _id: 1 } },
       ]);
 
+      // Quiz attempts metrics (based on server-side attempt submissions)
+      const quizAttemptsByDay = await QuizAttempt.aggregate([
+        { $match: { submittedAt: { $gte: sevenDaysAgo } } },
+        {
+          $group: {
+            _id: {
+              date: {
+                $dateToString: { format: "%Y-%m-%d", date: "$submittedAt" },
+              },
+            },
+            attempts: { $sum: 1 },
+            passed: {
+              $sum: {
+                $cond: [{ $eq: ["$status", "passed"] }, 1, 0],
+              },
+            },
+            failed: {
+              $sum: {
+                $cond: [{ $eq: ["$status", "failed"] }, 1, 0],
+              },
+            },
+            avgScore: { $avg: "$score" },
+          },
+        },
+        { $sort: { "_id.date": 1 } },
+      ])
+
+      const quizAttemptsLast7Days = quizAttemptsByDay.map((d) => ({
+        date: d._id.date,
+        attempts: d.attempts,
+        passed: d.passed,
+        failed: d.failed,
+        passRate: d.attempts ? (d.passed / d.attempts) * 100 : 0,
+        avgScore: d.avgScore || 0,
+      }))
+
+      const levelPassRate = await QuizAttempt.aggregate([
+        { $match: { submittedAt: { $gte: sevenDaysAgo } } },
+        {
+          $group: {
+            _id: "$levelId",
+            attempts: { $sum: 1 },
+            passed: {
+              $sum: {
+                $cond: [{ $eq: ["$status", "passed"] }, 1, 0],
+              },
+            },
+            avgScore: { $avg: "$score" },
+          },
+        },
+        {
+          $lookup: {
+            from: "levels",
+            localField: "_id",
+            foreignField: "_id",
+            as: "level",
+          },
+        },
+        { $unwind: "$level" },
+        {
+          $project: {
+            _id: 0,
+            levelId: "$level._id",
+            levelNumber: "$level.levelNumber",
+            title: "$level.title",
+            attempts: 1,
+            passed: 1,
+            passRate: { $cond: [{ $eq: ["$attempts", 0] }, 0, { $multiply: [{ $divide: ["$passed", "$attempts"] }, 100] }] },
+            avgScore: { $ifNull: ["$avgScore", 0] },
+          },
+        },
+        { $sort: { attempts: -1 } },
+        { $limit: 5 },
+      ])
+
+      const retakeRateAgg = await QuizAttempt.aggregate([
+        { $match: { submittedAt: { $gte: sevenDaysAgo } } },
+        {
+          $group: {
+            _id: null,
+            attempts: { $sum: 1 },
+            retakes: { $sum: { $cond: [{ $gt: ["$attemptNumber", 1] }, 1, 0] } },
+          },
+        },
+      ])
+
+      const retakeRate = (() => {
+        const row = retakeRateAgg?.[0]
+        if (!row || !row.attempts) return 0
+        return (row.retakes / row.attempts) * 100
+      })()
+
       stats = {
         ...stats,
         userGrowth,
         popularLanguages,
         topTeachers,
         chatMessages,
+        quizAttemptsLast7Days,
+        levelPassRate,
+        retakeRate,
         // additional counts
         totalChatSessions: await ChatSession.countDocuments(),
         totalProgressRecords: await UserProgress.countDocuments(),

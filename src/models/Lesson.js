@@ -82,12 +82,6 @@ const lessonSchema = new mongoose.Schema(
       },
     ],
 
-    // 🔥 Quiz system (POOL, not single quiz)
-    quizPool: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Quiz",
-    },
-
     // 🔥 stats (future-proofing)
     stats: {
       totalQuestions: Number,

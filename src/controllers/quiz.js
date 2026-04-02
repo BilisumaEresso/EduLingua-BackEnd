@@ -1,15 +1,15 @@
-const { Quiz, Lesson, Section } = require("../models");
+const { Quiz, Lesson, Level, Section } = require("../models");
 const AppError = require("../utils/AppError");
 const sendSuccess = require("../utils/sendSuccess");
 
-// Get all quizzes (optionally filtered by lesson)
+// Get all quizzes (optionally filtered by level)
 const getAllQuizzes = async (req, res, next) => {
   try {
-    const { lessonId } = req.query;
+    const { levelId } = req.query;
     const filter = {};
-    if (lessonId) filter.lesson = lessonId;
+    if (levelId) filter.level = levelId;
 
-    const quizzes = await Quiz.find(filter).populate("lesson");
+    const quizzes = await Quiz.find(filter).populate("level");
     sendSuccess(res, 200, "Quizzes fetched successfully", { quizzes });
   } catch (error) {
     next(error);
@@ -20,7 +20,7 @@ const getAllQuizzes = async (req, res, next) => {
 const getQuiz = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const quiz = await Quiz.findById(id).populate("lesson");
+    const quiz = await Quiz.findById(id).populate("level");
     if (!quiz) throw new AppError("Quiz not found", 404);
     sendSuccess(res, 200, "Quiz fetched successfully", { quiz });
   } catch (error) {
@@ -28,28 +28,52 @@ const getQuiz = async (req, res, next) => {
   }
 };
 
-
 const saveQuiz = async (req, res, next) => {
   try {
-    const { lessonId, questions } = req.body;
+    const { lessonId, levelId: providedLevelId, level: providedLevel, questions, questionPool, append = true } = req.body;
 
-    const lesson = await Lesson.findById(lessonId);
-    if (!lesson) throw new AppError("Lesson not found", 404);
+    let levelId = providedLevelId || providedLevel;
+    const incomingQuestions = questions || questionPool || [];
 
-    let quiz = await Quiz.findOne({ lesson: lessonId });
+    if (lessonId) {
+      const lesson = await Lesson.findById(lessonId).populate("level");
+      if (!lesson) throw new AppError("Lesson not found", 404);
+      levelId = lesson.level._id || lesson.level;
+    }
+
+    if (!levelId) throw new AppError("Level ID or Lesson ID is required", 400);
+
+    // Correctly find or create the quiz for this level
+    let quiz = await Quiz.findOne({ level: levelId });
+
+    const formattedQuestions = incomingQuestions.map(q => ({
+      ...q,
+      lesson: q.lesson || lessonId,
+      isAiGenerated: q.isAiGenerated ?? true
+    }));
 
     if (!quiz) {
+      const levelDoc = await Level.findById(levelId);
       quiz = new Quiz({
-        lesson: lessonId,
-        questionPool: questions,
+        level: levelId,
+        questionPool: formattedQuestions,
+        title: levelDoc ? `${levelDoc.title} Quiz Pool` : "Level Quiz Pool"
       });
     } else {
-      quiz.questionPool = questions;
+      if (append) {
+        quiz.questionPool.push(...formattedQuestions);
+      } else {
+        quiz.questionPool = formattedQuestions;
+      }
     }
 
     await quiz.save();
 
-    sendSuccess(res, 200, "Quiz saved successfully", { quiz });
+    sendSuccess(res, 200, "Quiz questions saved to level pool successfully", {
+      quizId: quiz._id,
+      levelId: quiz.level,
+      poolSize: quiz.questionPool.length
+    });
   } catch (err) {
     next(err);
   }
@@ -58,14 +82,14 @@ const saveQuiz = async (req, res, next) => {
 // Create a new quiz
 const createQuiz = async (req, res, next) => {
   try {
-    const { lesson } = req.body;
+    const { level } = req.body;
 
-    const lessonExists = await Lesson.findById(lesson);
-    if (!lessonExists) throw new AppError("Lesson not found", 404);
+    const levelExists = await Level.findById(level);
+    if (!levelExists) throw new AppError("Level not found", 404);
 
-    const existingQuiz = await Quiz.findOne({ lesson });
+    const existingQuiz = await Quiz.findOne({ level });
     if (existingQuiz)
-      throw new AppError("Quiz already exists for this lesson", 400);
+      throw new AppError("Quiz already exists for this level", 400);
 
     const quiz = await Quiz.create(req.body);
     sendSuccess(res, 201, "Quiz created successfully", { quiz });
@@ -83,14 +107,11 @@ const updateQuiz = async (req, res, next) => {
     const quiz = await Quiz.findById(id);
     if (!quiz) throw new AppError("Quiz not found", 404);
 
-    // If lesson is being updated, check uniqueness
-    if (
-      updates.lesson &&
-      updates.lesson.toString() !== quiz.lesson.toString()
-    ) {
-      const exists = await Quiz.findOne({ lesson: updates.lesson });
+    // If level is being updated, check uniqueness
+    if (updates.level && updates.level.toString() !== quiz.level.toString()) {
+      const exists = await Quiz.findOne({ level: updates.level });
       if (exists)
-        throw new AppError("Another quiz already exists for this lesson", 400);
+        throw new AppError("Another quiz already exists for this level", 400);
     }
 
     quiz.set(updates);
@@ -133,6 +154,30 @@ const getRandomQuestions = async (req, res, next) => {
   }
 };
 
+// Get randomized questions by Level ID
+const getRandomQuestionsByLevel = async (req, res, next) => {
+  try {
+    const { levelId } = req.params;
+    const { count = 10 } = req.query;
+
+    const quiz = await Quiz.findOne({ level: levelId });
+    if (!quiz) {
+       // If no quiz exists for this level, return empty or sensible error
+       return sendSuccess(res, 200, "No quiz pool found for this level", {
+         questions: []
+       });
+    }
+
+    const questions = quiz.getRandomQuestions(Number(count));
+    sendSuccess(res, 200, "Randomized level questions fetched successfully", {
+      questions,
+      totalPool: quiz.questionPool.length
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   getAllQuizzes,
   getQuiz,
@@ -140,5 +185,6 @@ module.exports = {
   updateQuiz,
   deleteQuiz,
   getRandomQuestions,
-  saveQuiz
+  getRandomQuestionsByLevel,
+  saveQuiz,
 };

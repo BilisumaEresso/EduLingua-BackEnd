@@ -5,7 +5,14 @@ const sendSuccess = require("../utils/sendSuccess");
 // Get all levels for a learning track
 const getAllLevels = async (req, res, next) => {
   try {
-    const { learningId } = req.query;
+    const { learningId, _id } = req.query;
+    if (_id) {
+      const levels = await Level.find({ _id, isActive: true })
+        .populate("lessons")
+        .sort({ order: 1 });
+      sendSuccess(res, 200, "Levels fetched successfully", { levels });
+      return;
+    }
     if (learningId) {
       const levels = await Level.find({ learning: learningId, isActive: true })
         .populate("lessons")
