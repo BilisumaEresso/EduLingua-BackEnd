@@ -6,6 +6,7 @@ const AppError = require("./src/utils/AppError")
 const sendSuccess = require("./src/utils/sendSuccess")
 const {authRoute, langRoute, lessonRoute, chatRoute, adminRoute, userProgressRoute, learningRoute, levelRoute, sectionRoute, quizRoute, aiRoute}=require("./src/routers")
 const cors=require("cors")
+const checkMaintenance = require("./src/middleware/maintenance");
 
 app.use(express.json({ limit: "10kb" }));
 app.use(
@@ -14,6 +15,9 @@ app.use(
     credentials: true, // if using cookies / auth headers
   }),
 );
+
+// Apply maintenance check globally (it internally allows auth & unlock routes to bypass)
+app.use(checkMaintenance);
 
 // routers
 app.use("/api/v1/auth",authRoute)

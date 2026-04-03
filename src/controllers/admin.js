@@ -10,8 +10,10 @@ const {
   Level,
   QuizAttempt,
 } = require("../models");
+const ActivityLog = require("../models/ActivityLog");
 const AppError = require("../utils/AppError");
 const sendSuccess = require("../utils/sendSuccess");
+const systemState = require("../utils/systemState");
 
 // ------------------- Super‑Admin only -------------------
 
@@ -117,14 +119,13 @@ const fireTeacher = async (req, res, next) => {
 };
 
 // Shutdown system (super‑admin only)
-let systemShutdown = false;
 const shutdownSystem = async (req, res, next) => {
   try {
-    systemShutdown = !systemShutdown;
+    systemState.isShutdown = !systemState.isShutdown;
     sendSuccess(
       res,
       200,
-      `System ${systemShutdown ? "shut down" : "restarted"}`,
+      `System ${systemState.isShutdown ? "shut down" : "restarted"}`,
     );
   } catch (error) {
     next(error);
@@ -518,6 +519,7 @@ const getDashboardStats = async (req, res, next) => {
         // additional counts
         totalChatSessions: await ChatSession.countDocuments(),
         totalProgressRecords: await UserProgress.countDocuments(),
+        activityLogs: await ActivityLog.find().sort({ createdAt: -1 }).limit(10).populate("user", "fullName email username").lean(),
       };
     }
 

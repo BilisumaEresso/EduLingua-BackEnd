@@ -4,6 +4,7 @@ const User = require("../models/User");
 const chatService = require("../services/chatService");
 const AppError = require("../utils/AppError");
 const sendSuccess = require("../utils/sendSuccess");
+const eventBus = require("../utils/eventBus");
 
 // 🔹 GET OR CREATE SESSION
 exports.getMyChat = async (req, res, next) => {
@@ -47,7 +48,7 @@ exports.sendMessage = async (req, res, next) => {
     }
 
     // 🔥 DAILY QUOTA RESET — if countResetsAt has passed, clear the counter
-    if (user.countResetsAt && new Date() > user.countResetsAt) {
+    if (user.countResetsAt && new Date() > new Date(user.countResetsAt)) {
       user.chatCount = 0;
       user.countResetsAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
     }
@@ -82,8 +83,14 @@ exports.sendMessage = async (req, res, next) => {
     // 🔹 increment usage and persist
     user.chatCount += 1;
     // Set reset window on first message of the day
-    if (!user.countResetsAt || new Date() > user.countResetsAt) {
+    if (!user.countResetsAt || new Date() > new Date(user.countResetsAt)) {
       user.countResetsAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+      eventBus.emit('logActivity', {
+        type: 'chat',
+        action: 'CHAT_QUOTA_RESET',
+        message: `Admin system allocated fresh daily chat quota for ${user.username}`,
+        user: user._id
+      });
     }
     await user.save();
 

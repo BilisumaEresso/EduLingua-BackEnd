@@ -4,6 +4,7 @@ const hashPassword = require("../utils/hashPassword");
 const comparePassword = require("../utils/comparePassword");
 const sendSuccess = require("../utils/sendSuccess");
 const generateToken = require("../utils/generateToken");
+const eventBus = require("../utils/eventBus");
 
 // SIGNUP
 const signup = async (req, res, next) => {
@@ -32,6 +33,13 @@ const signup = async (req, res, next) => {
     user = user.toObject();
     delete user.password;
 
+    eventBus.emit('logActivity', {
+      type: 'auth',
+      action: 'USER_REGISTERED',
+      message: `New user ${user.username} registered`,
+      user: user._id
+    });
+
     sendSuccess(res, 201, "User registered successfully", { user, token });
   } catch (err) {
     next(err);
@@ -55,6 +63,14 @@ const login = async (req, res, next) => {
     user = user.toObject();
     delete user.password;
     const token = await generateToken(user);
+
+    eventBus.emit('logActivity', {
+      type: 'auth',
+      action: 'USER_LOGGED_IN',
+      message: `User ${user.username} logged in`,
+      user: user._id,
+      metadata: { role: user.role }
+    });
 
     sendSuccess(res, 200, "User logged in successfully", { user, token });
   } catch (error) {
@@ -141,6 +157,13 @@ const upgradeToPremium = async (req, res, next) => {
     user.chatCount = 0;
     user.countResetsAt = new Date();
     await user.save();
+
+    eventBus.emit('logActivity', {
+      type: 'system',
+      action: 'USER_UPGRADED',
+      message: `User ${user.username} upgraded to premium`,
+      user: user._id
+    });
 
     sendSuccess(res, 200, "Premium upgrade successful", { isPremium: true });
   } catch (error) {
